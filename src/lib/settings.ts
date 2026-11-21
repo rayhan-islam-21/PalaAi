@@ -17,6 +17,9 @@ export type AppSettings = {
   effort: string;
   topupAmounts: number[];
   demoNow: Date | null;
+  supportEmail: string;
+  supportWhatsapp: string;
+  businessName: string;
 };
 
 export const FEE_MIN = 2000;
@@ -55,5 +58,8 @@ export async function getSettings(db: Db | Tx): Promise<AppSettings> {
     effort: s.effort,
     topupAmounts: s.topupAmounts as number[],
     demoNow: s.demoNow,
+    supportEmail: s.supportEmail,
+    supportWhatsapp: s.supportWhatsapp,
+    businessName: s.businessName,
   };
 }

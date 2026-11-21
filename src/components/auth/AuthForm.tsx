@@ -52,6 +52,9 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
     <div className="mx-auto max-w-sm">
       <h1 className="h1">{mode === "signup" ? "অ্যাকাউন্ট খুলুন" : "লগইন করুন"}</h1>
       <p className="muted mt-1">{mode === "signup" ? "১ মিনিটেই শুরু করুন।" : "আবার স্বাগতম!"}</p>
+      {params.get("blocked") && (
+        <p role="alert" className="mt-4 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">এই অ্যাকাউন্টটি বন্ধ আছে। সাহায্যের জন্য সাপোর্টে যোগাযোগ করুন।</p>
+      )}
       <form method="post" onSubmit={onSubmit} className="card mt-4 space-y-3">
         {mode === "signup" && (
           <div>
@@ -70,6 +73,9 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
         {error && <p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
         <button className="btn-primary w-full" disabled={pending || !ready}>{pending ? "অপেক্ষা করুন…" : mode === "signup" ? "অ্যাকাউন্ট খুলুন" : "লগইন"}</button>
       </form>
+      {mode === "login" && (
+        <p className="mt-3 text-center text-sm text-mute">পাসওয়ার্ড ভুলে গেছেন? <a className="font-semibold text-brand-700" href="/support">সাপোর্টে যোগাযোগ করুন</a> — আমরা নতুন পাসওয়ার্ড দিয়ে দেব।</p>
+      )}
       <p className="mt-4 text-center text-sm">
         {mode === "signup" ? (
           <>আগেই অ্যাকাউন্ট আছে? <Link className="font-semibold text-brand-700" href={`/login?next=${encodeURIComponent(next)}`}>লগইন করুন</Link></>

@@ -4,11 +4,14 @@ import { ActionForm } from "@/components/ActionForm";
 import { takaPlain } from "@/lib/money";
 import { approvePaymentAction, rejectPaymentAction } from "../actions";
 
-export default async function AdminPayments({ searchParams }: { searchParams: Promise<{ status?: string }> }) {
+export default async function AdminPayments({ searchParams }: { searchParams: Promise<{ status?: string; q?: string }> }) {
   const sp = await searchParams;
-  const status = ["PENDING", "APPROVED", "REJECTED"].includes(sp.status ?? "") ? sp.status! : "PENDING";
+  const status = ["PENDING", "APPROVED", "REJECTED", "CANCELLED"].includes(sp.status ?? "") ? sp.status! : "PENDING";
+  const q = (sp.q ?? "").trim();
   const claims = await prisma.paymentClaim.findMany({
-    where: { status },
+    where: q
+      ? { OR: [{ transactionId: { contains: q.toUpperCase() } }, { senderNumber: { contains: q } }, { user: { email: { contains: q, mode: "insensitive" } } }] }
+      : { status },
     orderBy: { createdAt: status === "PENDING" ? "asc" : "desc" },
     take: 200,
     include: {
@@ -22,10 +25,15 @@ export default async function AdminPayments({ searchParams }: { searchParams: Pr
       <h1 className="h1">Payment verification</h1>
       <p className="muted mt-1">A submitted transaction ID is a claim, not proof. Check your bKash/Nagad merchant statement for the exact TrxID, amount and sender before approving.</p>
       <div className="mt-3 flex gap-2">
-        {["PENDING", "APPROVED", "REJECTED"].map((s) => (
-          <Link key={s} href={`/admin/payments?status=${s}`} className={`rounded-lg px-3 py-1.5 text-sm font-semibold ${s === status ? "bg-brand-600 text-white" : "bg-white ring-1 ring-black/10"}`}>{s}</Link>
+        {["PENDING", "APPROVED", "REJECTED", "CANCELLED"].map((s) => (
+          <Link key={s} href={`/admin/payments?status=${s}`} className={`rounded-lg px-3 py-1.5 text-sm font-semibold ${s === status && !q ? "bg-brand-600 text-white" : "bg-white ring-1 ring-black/10"}`}>{s}</Link>
         ))}
       </div>
+      <form className="mt-3 flex max-w-md gap-2">
+        <input className="input" name="q" defaultValue={q} placeholder="Search TrxID, sender number or email" aria-label="Search payments" />
+        <button className="btn-secondary">Search</button>
+      </form>
+      {q && <p className="muted mt-2">Showing all statuses matching “{q}”.</p>}
       <ul className="mt-4 space-y-3">
         {claims.map((c) => (
           <li key={c.id} className="card" data-testid="claim">
@@ -34,12 +42,12 @@ export default async function AdminPayments({ searchParams }: { searchParams: Pr
                 <div className="text-lg font-bold">{takaPlain(c.amount)} · {c.provider}</div>
                 <div className="font-mono text-base">TrxID: <strong>{c.transactionId}</strong></div>
                 <div className="text-sm">From: <span className="font-mono">{c.senderNumber}</span></div>
-                <div className="text-sm text-gray-600">{c.user.name} ({c.user.email})</div>
+                <div className="text-sm text-gray-600"><a className="underline" href={`/admin/users/${c.userId}`}>{c.user.name}</a> ({c.user.email})</div>
                 <div className="text-sm text-gray-600">
                   {c.purpose === "WALLET_TOPUP" ? "Wallet top-up" : <>Group share: <Link className="underline" href={`/admin/groups/${c.share?.cycle.group.id}`}>{c.share?.cycle.group.name}</Link> (group {c.share?.cycle.group.status}, share {c.share?.status}, member {c.share?.membership.status})</>}
                 </div>
                 <div className="text-xs text-gray-500">Submitted {c.createdAt.toISOString().replace("T", " ").slice(0, 16)} UTC</div>
-                {c.status !== "PENDING" && <div className="mt-1 text-sm">Reviewed by {c.reviewedBy?.name} — {c.adminNote || "(no note)"}</div>}
+                {c.status !== "PENDING" && <div className="mt-1 text-sm">{c.status}{c.reviewedBy ? ` by ${c.reviewedBy.name}` : ""} — {c.adminNote || "(no note)"}</div>}
               </div>
               {c.status === "PENDING" && (
                 <div className="grid w-full gap-2 sm:w-80">

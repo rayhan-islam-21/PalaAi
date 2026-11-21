@@ -10,6 +10,7 @@ import { audit } from "@/lib/audit";
 import { approveClaim, rejectClaim, completeRefund, normalizeMsisdn, PROVIDERS } from "@/lib/services/payments";
 import { cancelGroup } from "@/lib/services/groups";
 import { releaseStale } from "@/lib/services/chat";
+import { adminAdjustWallet, adminResetPassword, adminSetDisabled } from "@/lib/services/account";
 import { FEE_MAX, FEE_MIN, getSettings } from "@/lib/settings";
 import { MODEL_PRICES } from "@/lib/models";
 import { countForModel } from "@/lib/token-count";
@@ -275,4 +276,54 @@ export async function saveBusinessSettingsAction(_: ActionState, fd: FormData): 
   await audit(prisma, admin.id, "settings.update", "Setting", "1", JSON.parse(JSON.stringify(data)));
   revalidatePath("/", "layout");
   return { ok: "Saved. New prices apply to every new message from now on." };
+}
+
+export async function adjustWalletAction(_: ActionState, fd: FormData): Promise<ActionState> {
+  const admin = await requireAdmin();
+  const amt = parseTaka(str(fd, "amount").replace(/^[-−]/, ""));
+  if (amt === null || amt === 0) return { error: "Enter an amount in taka, e.g. 50" };
+  const sign = str(fd, "direction") === "debit" ? -1 : 1;
+  try {
+    const w = await adminAdjustWallet(prisma, { adminId: admin.id, userId: str(fd, "userId"), amount: sign * amt, reason: str(fd, "reason") });
+    revalidatePath(`/admin/users/${str(fd, "userId")}`);
+    return { ok: `Done. New balance ৳${(w.balance / 100).toFixed(2)}.` };
+  } catch (e) {
+    return { error: errorMessage(e) };
+  }
+}
+
+export async function setUserDisabledAction(_: ActionState, fd: FormData): Promise<ActionState> {
+  const admin = await requireAdmin();
+  const disabled = str(fd, "disabled") === "true";
+  try {
+    await adminSetDisabled(prisma, { adminId: admin.id, userId: str(fd, "userId"), disabled });
+  } catch (e) {
+    return { error: errorMessage(e) };
+  }
+  revalidatePath(`/admin/users/${str(fd, "userId")}`);
+  return { ok: disabled ? "Account blocked and signed out." : "Account unblocked." };
+}
+
+export async function resetUserPasswordAction(_: ActionState, fd: FormData): Promise<ActionState> {
+  const admin = await requireAdmin();
+  const temp = `Pala-${Math.random().toString(36).slice(2, 6)}-${Math.random().toString(36).slice(2, 6)}`;
+  try {
+    await adminResetPassword(prisma, { adminId: admin.id, userId: str(fd, "userId"), password: temp });
+  } catch (e) {
+    return { error: errorMessage(e) };
+  }
+  return { ok: `Temporary password: ${temp} — send it to the customer and ask them to change it in Account.` };
+}
+
+export async function saveSupportAction(_: ActionState, fd: FormData): Promise<ActionState> {
+  const admin = await requireAdmin();
+  const email = str(fd, "supportEmail");
+  const wa = str(fd, "supportWhatsapp");
+  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return { error: "Support email looks wrong." };
+  if (wa && !normalizeMsisdn(wa)) return { error: "WhatsApp number must be a Bangladeshi mobile number (01XXXXXXXXX)." };
+  const data = { supportEmail: email, supportWhatsapp: wa ? normalizeMsisdn(wa)! : "", businessName: str(fd, "businessName").slice(0, 60) || "Pala AI" };
+  await prisma.setting.update({ where: { id: 1 }, data });
+  await audit(prisma, admin.id, "settings.support", "Setting", "1", data);
+  revalidatePath("/", "layout");
+  return { ok: "Support contact saved." };
 }

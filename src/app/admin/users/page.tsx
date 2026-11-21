@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { GROUPS_ENABLED } from "@/lib/features";
 import { prisma } from "@/lib/db";
 import { takaPlain } from "@/lib/money";
@@ -27,7 +28,7 @@ export default async function AdminUsers({ searchParams }: { searchParams: Promi
           <tbody>
             {users.map((u) => (
               <tr key={u.id}>
-                <td>{u.name}</td>
+                <td><Link className="font-semibold text-brand-700 underline" href={`/admin/users/${u.id}`}>{u.name}</Link>{u.disabled && <span className="ml-1 text-xs text-red-700">{u.deletedAt ? "deleted" : "blocked"}</span>}</td>
                 <td>{u.email}</td>
                 <td>{u.role}</td>
                 <td>{takaPlain(u.wallet?.balance ?? 0)}</td>

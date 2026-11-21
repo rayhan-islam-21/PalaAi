@@ -12,6 +12,8 @@ export type FundingSource = "WALLET" | "GROUP";
 export const MAX_MESSAGE_CHARS = 8000;
 const HISTORY_LIMIT = 20;
 const STALE_MS = 10 * 60 * 1000;
+/** Max replies being generated at once per customer (protects your API budget and rate limits). */
+export const MAX_PARALLEL = 3;
 
 export type PreparedChat = {
   requestId: string;
@@ -91,6 +93,8 @@ export async function prepareChat(
   if (existing) return duplicateOf(db, existing);
 
   await releaseStale(db, input.now, input.userId);
+  const inFlight = await db.chatRequest.count({ where: { userId: input.userId, status: "RESERVED" } });
+  if (inFlight >= MAX_PARALLEL) throw new AppError("BUSY", "আগের উত্তর শেষ হওয়া পর্যন্ত একটু অপেক্ষা করুন।", 429);
 
   let conversationId: string | null = null;
   if (input.conversationId) {

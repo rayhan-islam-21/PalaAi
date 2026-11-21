@@ -18,6 +18,8 @@ function json(body: unknown, status = 200) {
 export async function POST(req: Request) {
   const session = await auth.api.getSession({ headers: req.headers });
   if (!session) return json({ error: "লগইন করুন।", code: "UNAUTHENTICATED" }, 401);
+  const owner = await prisma.user.findUnique({ where: { id: session.user.id }, select: { disabled: true } });
+  if (!owner || owner.disabled) return json({ error: "এই অ্যাকাউন্টটি বন্ধ আছে। সাপোর্টে যোগাযোগ করুন।", code: "DISABLED" }, 403);
 
   const { provider, reason } = getProvider();
   if (!provider) return json({ error: reason, code: "CHAT_DISABLED" }, 503);

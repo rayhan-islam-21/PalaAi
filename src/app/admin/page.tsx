@@ -43,6 +43,7 @@ export default async function AdminHome() {
   const checks: { ok: boolean; text: string; href: string }[] = [
     { ok: methods.length > 0 && !methods.every((m) => m.isDemo), text: methods.length ? `Payments: ${methods.map((m) => m.provider + (m.isDemo ? " (demo number)" : "")).join(", ")}` : "No bKash/Nagad number set — customers can't pay", href: "/admin/settings" },
     { ok: isDemoMode() ? false : hasAnthropicKey(), text: isDemoMode() ? "DEMO MODE — mock AI, not real Claude" : hasAnthropicKey() ? "AI connected (Anthropic API key set)" : "No ANTHROPIC_API_KEY — chat is off", href: "/admin/settings" },
+    { ok: !!(s.supportWhatsapp || s.supportEmail), text: s.supportWhatsapp || s.supportEmail ? `Support: ${[s.supportWhatsapp, s.supportEmail].filter(Boolean).join(" · ")}` : "No support contact — customers can't reach you", href: "/admin/settings" },
     { ok: s.walletMarkupPercent >= 25, text: `${model} · ৳${s.rates.usdToBdt}/$ · markup ${s.walletMarkupPercent}% (= ${margin.toFixed(0)}% profit)`, href: "/admin/settings" },
   ];
 
@@ -70,7 +71,7 @@ export default async function AdminHome() {
         <div className="rounded-2xl bg-brand-50 p-5 text-brand-900 ring-1 ring-brand-600/20" data-testid="todo">Nothing to do — no payments waiting.</div>
       )}
 
-      <ul className="grid gap-2 md:grid-cols-3">
+      <ul className="grid gap-2 md:grid-cols-2 xl:grid-cols-4">
         {checks.map((c) => (
           <li key={c.text}>
             <Link href={c.href} className={`flex items-start gap-2 rounded-xl p-3 text-sm ring-1 ${c.ok ? "bg-white ring-line" : "bg-red-50 ring-red-200"}`}>

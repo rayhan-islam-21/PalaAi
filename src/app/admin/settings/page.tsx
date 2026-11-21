@@ -5,7 +5,7 @@ import { ActionForm } from "@/components/ActionForm";
 import { groupQuote } from "@/lib/pricing";
 import { takaPlain } from "@/lib/money";
 import { currentTime } from "@/lib/clock";
-import { saveSettingsAction, savePaymentMethodAction, setDemoClockAction, saveBusinessSettingsAction } from "../actions";
+import { saveSettingsAction, savePaymentMethodAction, setDemoClockAction, saveBusinessSettingsAction, saveSupportAction } from "../actions";
 import { BusinessSettings } from "./BusinessSettings";
 import { MODEL_PRICES } from "@/lib/models";
 import { GROUPS_ENABLED } from "@/lib/features";
@@ -77,6 +77,27 @@ export default async function AdminSettings() {
             );
           })}
         </div>
+      </section>
+
+      <section className="card space-y-3">
+        <div>
+          <h2 className="h2">Support contact</h2>
+          <p className="muted">Shown on the Support page, used by customers for payment problems and forgotten passwords.</p>
+        </div>
+        <ActionForm action={saveSupportAction} submitLabel="Save support contact" submitClass="btn-primary" className="grid gap-3 md:grid-cols-3">
+          <div>
+            <label className="label" htmlFor="supportWhatsapp">WhatsApp number</label>
+            <input className="input" id="supportWhatsapp" name="supportWhatsapp" defaultValue={s.supportWhatsapp} placeholder="01XXXXXXXXX" />
+          </div>
+          <div>
+            <label className="label" htmlFor="supportEmail">Support email</label>
+            <input className="input" id="supportEmail" name="supportEmail" type="email" defaultValue={s.supportEmail} placeholder="support@yourdomain.com" />
+          </div>
+          <div>
+            <label className="label" htmlFor="businessName">Business name</label>
+            <input className="input" id="businessName" name="businessName" defaultValue={s.businessName} />
+          </div>
+        </ActionForm>
       </section>
 
       {GROUPS_ENABLED && (

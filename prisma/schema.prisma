@@ -21,6 +21,8 @@ model User {
   image         String?
   role          String    @default("USER") // USER | ADMIN
   phone         String?
+  disabled      Boolean   @default(false)
+  deletedAt     DateTime?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
   sessions      Session[]
@@ -108,6 +110,9 @@ model Setting {
   topupAmounts         Json // [10000, 25000, 50000]
   demoNow              DateTime? // demo mode only: simulated clock
   demoSetAt            DateTime? // real time when demoNow was set
+  supportEmail         String   @default("")
+  supportWhatsapp      String   @default("")
+  businessName         String   @default("Pala AI")
   updatedAt            DateTime @updatedAt
 }
 
@@ -241,7 +246,7 @@ model PaymentClaim {
   purpose       String // WALLET_TOPUP | GROUP_SHARE
   shareId       String?
   share         CycleShare? @relation(fields: [shareId], references: [id])
-  status        String      @default("PENDING") // PENDING | APPROVED | REJECTED
+  status        String      @default("PENDING") // PENDING | APPROVED | REJECTED | CANCELLED
   adminNote     String?
   reviewedById  String?
   reviewedBy    User?       @relation("PaymentReviewer", fields: [reviewedById], references: [id])

@@ -164,6 +164,60 @@ try {
   const resp = await other.page.goto(convUrl);
   assert.equal(resp.status(), 404);
 
+  step("public pages: legal, support, 404, robots");
+  for (const path of ["/terms", "/privacy", "/refund", "/support", "/robots.txt", "/sitemap.xml"]) {
+    const r = await other.page.goto(`${BASE}${path}`);
+    assert.equal(r.status(), 200, path);
+  }
+  assert.equal((await other.page.goto(`${BASE}/no-such-page`)).status(), 404);
+
+  step("account: edit profile");
+  await u.page.goto(`${BASE}/account`);
+  await settle(u.page);
+  await u.page.fill("#name", "Karim Uddin");
+  await u.page.fill("#phone", "01712345678");
+  await u.page.click("button:has-text('সেভ করুন')");
+  await u.page.getByText("প্রোফাইল সেভ হয়েছে।").waitFor();
+  await u.page.screenshot({ path: `${SHOTS}/08-account.png`, fullPage: true });
+
+  step("chat: rename and delete a conversation");
+  u.page.on("dialog", (d) => (d.type() === "prompt" ? d.accept("Recursion notes") : d.accept()));
+  await u.page.goto(convUrl);
+  await settle(u.page);
+  await u.page.click("button[aria-label='চ্যাটের অপশন']");
+  await u.page.click("text=নাম বদলান");
+  await u.page.locator("header").getByText("Recursion notes").waitFor();
+  await u.page.click("button[aria-label='চ্যাটের অপশন']");
+  await u.page.click("text=চ্যাট মুছে ফেলুন");
+  await u.page.waitForURL(/\/chat$/);
+  assert.equal((await u.page.goto(convUrl)).status(), 404);
+
+  step("payments: customer cancels a mistaken pending claim");
+  await u.page.goto(`${BASE}/pay?purpose=WALLET_TOPUP&amount=10000`);
+  await pay(u, `CNL${run}`.toUpperCase());
+  await u.page.waitForURL(/\/payments\?submitted=1/);
+  await u.page.click("button:has-text('বাতিল করুন')");
+  await u.page.getByText("আপনি বাতিল করেছেন").first().waitFor();
+
+  step("admin: adjust balance and block / unblock a customer");
+  await admin.goto(`${BASE}/admin/users?q=${encodeURIComponent(u.email)}`);
+  await settle(admin);
+  await admin.click(`a:has-text("Karim Uddin")`);
+  await settle(admin);
+  await admin.fill("input[name=amount]", "10");
+  await admin.fill("input[name=reason]", "goodwill");
+  await admin.click("button:has-text('Apply')");
+  await admin.getByText(/^Done\. New balance/).waitFor();
+  await admin.click("button:has-text('Block')");
+  await admin.getByText("Account blocked and signed out.").waitFor();
+  await u.page.goto(`${BASE}/dashboard`);
+  await u.page.waitForURL(/\/login/);
+  await admin.reload();
+  await settle(admin);
+  await admin.click("button:has-text('Unblock')");
+  await admin.getByText("Account unblocked.").waitFor();
+  await admin.screenshot({ path: `${SHOTS}/09-admin-customer.png`, fullPage: true });
+
   step("admin token calculator");
   await admin.goto(`${BASE}/admin/tokens`);
   await settle(admin);

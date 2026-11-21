@@ -1,10 +1,15 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
-import { isDemoMode } from "@/lib/env";
+import { appUrl, isDemoMode } from "@/lib/env";
+
+const description = "Claude AI ব্যবহার করুন লিমিটের অপেক্ষা ছাড়া — ৳১০০ থেকে প্রিপেইড ক্রেডিট, যতটুকু ব্যবহার ততটুকু খরচ। বিকাশ/নগদে পেমেন্ট।";
 
 export const metadata: Metadata = {
-  title: "Pala AI — বন্ধুরা মিলে AI",
-  description: "বন্ধুদের সাথে মাসিক AI বাজেট ভাগ করুন, অথবা নিজের জন্য প্রিপেইড ক্রেডিট নিন। বিকাশ/নগদে পেমেন্ট।",
+  metadataBase: new URL(appUrl()),
+  title: { default: "Pala AI — বিকাশে Claude AI", template: "%s · Pala AI" },
+  description,
+  openGraph: { title: "Pala AI — বিকাশে Claude AI", description, type: "website", locale: "bn_BD", siteName: "Pala AI" },
+  twitter: { card: "summary", title: "Pala AI — বিকাশে Claude AI", description },
 };
 
 export const viewport: Viewport = {

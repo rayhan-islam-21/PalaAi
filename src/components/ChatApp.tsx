@@ -5,6 +5,8 @@ import { Markdown } from "./Markdown";
 import { Countdown } from "./Countdown";
 import { takaPrecise } from "@/lib/money";
 import { LogoMark } from "./Icons";
+import { CopyButton } from "./CopyButton";
+import { deleteChat, renameChat } from "@/app/account-actions";
 
 export type ChatMessage = { id: string; role: "user" | "assistant"; content: string; status: string; charge: number | null; fundingSource: string | null };
 export type ConversationItem = { id: string; title: string };
@@ -44,6 +46,26 @@ export function ChatApp(props: Props) {
   const [error, setError] = useState<string | null>(null);
   const [drawer, setDrawer] = useState(false);
   const [conversations, setConversations] = useState(props.conversations);
+  const [menu, setMenu] = useState(false);
+  const currentTitle = conversations.find((c) => c.id === conversationId)?.title ?? null;
+
+  async function rename() {
+    setMenu(false);
+    if (!conversationId) return;
+    const t = window.prompt("চ্যাটের নতুন নাম:", currentTitle ?? "");
+    if (!t || !t.trim()) return;
+    const r = await renameChat(conversationId, t);
+    if (r.error) return setError(r.error);
+    setConversations((cs) => cs.map((c) => (c.id === conversationId ? { ...c, title: t.trim().slice(0, 80) } : c)));
+  }
+
+  async function remove() {
+    setMenu(false);
+    if (!conversationId || !window.confirm("এই চ্যাটটি চিরতরে মুছে ফেলবেন?")) return;
+    const r = await deleteChat(conversationId);
+    if (r.error) return setError(r.error);
+    window.location.href = "/chat";
+  }
   const groupInSlot = props.groups.find((g) => g.inSlot) ?? null;
   // Group allowance is used automatically only inside the member's own slot; the wallet must be chosen explicitly.
   const [source, setSource] = useState<Source | null>(groupInSlot ? "GROUP" : props.groups.length === 0 ? "WALLET" : null);
@@ -148,8 +170,19 @@ export function ChatApp(props: Props) {
       <header className="flex h-14 shrink-0 items-center gap-2 border-b border-black/5 bg-white px-2">
         <button className="btn-ghost min-h-9 px-2 py-1 md:hidden" onClick={() => setDrawer(true)} aria-label="চ্যাট তালিকা">☰</button>
         <Link href="/dashboard" className="flex items-center gap-1.5 font-extrabold text-ink" aria-label="Pala AI ড্যাশবোর্ড"><LogoMark size={28} /><span className="num hidden sm:inline">Pala AI</span></Link>
-        <span className="truncate text-sm text-gray-500">{props.providerLabel}</span>
-        <Link href="/chat" className="btn-secondary ml-auto min-h-9 py-1 text-sm" onClick={() => setDrawer(false)}>+ নতুন চ্যাট</Link>
+        <span className="min-w-0 truncate text-sm text-gray-500">{currentTitle ?? props.providerLabel}</span>
+        {conversationId && (
+          <div className="relative ml-auto">
+            <button className="btn-ghost min-h-9 px-2 py-1" aria-label="চ্যাটের অপশন" aria-expanded={menu} onClick={() => setMenu((v) => !v)}>⋯</button>
+            {menu && (
+              <div className="absolute right-0 top-10 z-30 w-44 overflow-hidden rounded-xl bg-white shadow-lg ring-1 ring-black/10" role="menu">
+                <button role="menuitem" className="block w-full px-4 py-3 text-left text-sm hover:bg-ground" onClick={rename}>নাম বদলান</button>
+                <button role="menuitem" className="block w-full px-4 py-3 text-left text-sm text-red-700 hover:bg-red-50" onClick={remove}>চ্যাট মুছে ফেলুন</button>
+              </div>
+            )}
+          </div>
+        )}
+        <Link href="/chat" className={`btn-secondary min-h-9 py-1 text-sm ${conversationId ? "" : "ml-auto"}`} onClick={() => setDrawer(false)}>+ নতুন চ্যাট</Link>
       </header>
       <div className="flex min-h-0 flex-1">
         <aside className={`${drawer ? "fixed inset-0 z-30 flex" : "hidden"} md:static md:flex md:w-64 md:shrink-0`}>
@@ -190,6 +223,7 @@ export function ChatApp(props: Props) {
                         {m.status === "FAILED" ? "অসম্পূর্ণ · " : ""}
                         {m.fundingSource === "GROUP" ? "গ্রুপ অ্যালাওয়েন্স" : m.fundingSource === "WALLET" ? "ব্যক্তিগত ওয়ালেট" : ""}
                         {m.charge != null ? ` · খরচ ${takaPrecise(m.charge)}` : ""}
+                        {m.content && <span className="ml-2 inline-block align-middle [&_button]:min-h-7 [&_button]:px-2 [&_button]:py-0 [&_button]:text-[11px]"><CopyButton text={m.content} label="কপি" /></span>}
                       </div>
                     )}
                   </div>

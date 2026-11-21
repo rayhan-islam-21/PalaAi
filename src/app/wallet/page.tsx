@@ -64,6 +64,7 @@ export default async function WalletPage() {
               <li key={t.id} className="flex items-center justify-between py-2 text-sm">
                 <div>
                   <div className="font-medium">{TYPE_LABEL[t.type] ?? t.type}</div>
+                  {t.type === "ADJUSTMENT" && t.note && <div className="text-xs text-mute">{t.note}</div>}
                   <div className="text-xs text-gray-500">{formatDhaka(t.createdAt)}</div>
                 </div>
                 <div className="text-right">

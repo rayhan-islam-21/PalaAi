@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { getUser } from "@/lib/session";
-import { SignOutButton } from "./SignOutButton";
 import { IconChart, IconChat, IconHome, IconWallet, LogoMark } from "./Icons";
 
 const NAV = [
@@ -37,11 +36,13 @@ export function SiteFooter() {
             Anthropic API দিয়ে চালিত একটি স্বাধীন সেবা। Anthropic-এর সাথে কোনো অফিসিয়াল সম্পর্ক নেই। এটি Claude Pro সাবস্ক্রিপশন নয়।
           </p>
         </div>
-        <div className="flex gap-5 text-[15px]">
-          <Link href="/#faq" className="text-white hover:underline">প্রশ্ন</Link>
+        <nav aria-label="ফুটার" className="flex flex-wrap gap-x-5 gap-y-2 text-[15px]">
           <Link href="/#pricing" className="text-white hover:underline">দাম</Link>
-          <Link href="/login" className="text-white hover:underline">লগইন</Link>
-        </div>
+          <Link href="/support" className="text-white hover:underline">সাপোর্ট</Link>
+          <Link href="/terms" className="text-white hover:underline">শর্তাবলি</Link>
+          <Link href="/privacy" className="text-white hover:underline">গোপনীয়তা</Link>
+          <Link href="/refund" className="text-white hover:underline">রিফান্ড</Link>
+        </nav>
       </div>
     </footer>
   );
@@ -80,7 +81,9 @@ export async function AppShell({
             {user ? (
               <>
                 {user.role === "ADMIN" && <Link href="/admin" className="text-sm font-semibold text-amber-text md:hidden">Admin</Link>}
-                <SignOutButton />
+                <Link href="/account" aria-label="আমার অ্যাকাউন্ট" className="flex h-10 w-10 items-center justify-center rounded-full bg-mint text-[15px] font-bold text-brand-900">
+                  {user.name.trim().charAt(0).toUpperCase() || "?"}
+                </Link>
               </>
             ) : (
               <>

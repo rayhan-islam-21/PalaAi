@@ -2,6 +2,8 @@ import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/session";
 import { AppShell } from "@/components/AppShell";
 import { StatusBadge } from "@/components/Badges";
+import { ActionForm } from "@/components/ActionForm";
+import { cancelClaimAction } from "@/app/account-actions";
 import { PROVIDER_LABEL } from "@/lib/services/payments";
 import { taka } from "@/lib/money";
 import { formatDhaka } from "@/lib/slots";
@@ -41,13 +43,20 @@ export default async function Payments({ searchParams }: { searchParams: Promise
           <li key={c.id} className="card text-sm">
             <div className="flex items-center justify-between">
               <strong>{taka(c.amount)}</strong>
-              <StatusBadge status={c.status} />
+              <StatusBadge status={c.status === "CANCELLED" ? "CANCELLED_CLAIM" : c.status} />
             </div>
             <div className="mt-1 text-gray-600">
               {c.purpose === "WALLET_TOPUP" ? "ওয়ালেট টপ-আপ" : `গ্রুপ: ${c.share?.cycle.group.name ?? ""}`} · {PROVIDER_LABEL[c.provider]} · <span className="font-mono">{c.transactionId}</span>
             </div>
             <div className="text-xs text-gray-500">{formatDhaka(c.createdAt)}</div>
-            {c.adminNote && c.status !== "PENDING" && <div className="mt-1 rounded bg-gray-50 p-2 text-xs">নোট: {c.adminNote}</div>}
+            {c.adminNote && c.status === "REJECTED" && <div className="mt-1 rounded bg-red-50 p-2 text-xs text-red-800">কারণ: {c.adminNote}</div>}
+            {c.status === "PENDING" && (
+              <div className="mt-2">
+                <ActionForm action={cancelClaimAction} submitLabel="ভুল হয়েছে? বাতিল করুন" submitClass="btn-ghost min-h-9 px-2 py-1 text-sm text-red-700" confirm="এই পেমেন্ট দাবিটি বাতিল করবেন? টাকা পাঠিয়ে থাকলে সাপোর্টে যোগাযোগ করুন।" className="">
+                  <input type="hidden" name="claimId" value={c.id} />
+                </ActionForm>
+              </div>
+            )}
           </li>
         ))}
         {claims.length === 0 && <li className="card text-sm text-gray-600">এখনো কোনো পেমেন্ট নেই।</li>}

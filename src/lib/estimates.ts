@@ -12,8 +12,11 @@ export function exampleCharges(s: AppSettings) {
   return EXAMPLES.map((e) => ({ ...e, charge: customerCharge(s.rates, s.walletMarkupPercent, e.input, e.output) }));
 }
 
-/** Approximate number of typical (medium) messages a top-up buys. */
+/**
+ * Conservative number of messages a balance buys: assumes a Bangla answer in an ongoing chat
+ * (~3,000 tokens read + 700 written), so customers usually get more than promised, not less.
+ */
 export function approxMessages(s: AppSettings, amount: number) {
-  const per = customerCharge(s.rates, s.walletMarkupPercent, EXAMPLES[1].input, EXAMPLES[1].output);
+  const per = customerCharge(s.rates, s.walletMarkupPercent, 3000, 700);
   return Math.max(1, Math.floor(amount / Math.max(1, per)));
 }

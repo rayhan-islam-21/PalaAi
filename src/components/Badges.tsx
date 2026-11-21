@@ -1,7 +1,8 @@
 const MAP: Record<string, [string, string]> = {
   PENDING: ["যাচাই চলছে", "bg-amber-100 text-amber-800"],
   APPROVED: ["অনুমোদিত", "bg-brand-100 text-brand-900"],
-  REJECTED: ["বাতিল", "bg-red-100 text-red-700"],
+  REJECTED: ["প্রত্যাখ্যাত", "bg-red-100 text-red-700"],
+  CANCELLED_CLAIM: ["আপনি বাতিল করেছেন", "bg-gray-100 text-gray-600"],
   UNPAID: ["টাকা বাকি", "bg-gray-100 text-gray-700"],
   PAID: ["পরিশোধিত", "bg-brand-100 text-brand-900"],
   VOID: ["প্রযোজ্য নয়", "bg-gray-100 text-gray-500"],
