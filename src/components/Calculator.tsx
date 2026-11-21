@@ -4,69 +4,69 @@ import type { Slot } from "@/lib/slots";
 import { formatSlot } from "@/lib/slots";
 import { taka } from "@/lib/money";
 
-export function Calculator({
-  pool,
-  fee,
-  schedule4,
-  schedule5,
-}: {
-  pool: number;
-  fee: number;
-  schedule4: Slot[];
-  schedule5: Slot[];
-}) {
+const COLORS = ["#047857", "#0e7490", "#b45309", "#6d28d9", "#be185d"];
+
+function useCalc(pool: number, fee: number, seats: number) {
+  const share = Math.round(pool / seats);
+  return { share, each: share + fee, total: (share + fee) * seats };
+}
+
+function SeatToggle({ seats, setSeats }: { seats: 4 | 5; setSeats: (n: 4 | 5) => void }) {
+  return (
+    <div role="radiogroup" aria-label="সদস্য সংখ্যা" className="grid grid-cols-2 gap-1.5 rounded-[13px] bg-[#eef2ef] p-1.5">
+      {([4, 5] as const).map((n) => (
+        <button
+          key={n}
+          type="button"
+          role="radio"
+          aria-checked={seats === n}
+          onClick={() => setSeats(n)}
+          className={`min-h-11 rounded-[10px] px-5 text-base ${seats === n ? "bg-white font-bold text-brand-900 shadow-[0_1px_3px_rgba(16,35,28,0.12)]" : "font-semibold text-mute"}`}
+        >
+          {n === 4 ? "৪ জন" : "৫ জন"}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/** Live 4-vs-5 price calculator with the daily slot schedule. */
+export function Calculator({ pool, fee, schedule4, schedule5 }: { pool: number; fee: number; schedule4: Slot[]; schedule5: Slot[] }) {
   const [seats, setSeats] = useState<4 | 5>(4);
-  const calc = (n: number) => {
-    const share = Math.round(pool / n);
-    return { share, each: share + fee, total: (share + fee) * n };
-  };
-  const c = calc(seats);
+  const c = useCalc(pool, fee, seats);
   const schedule = seats === 4 ? schedule4 : schedule5;
   return (
-    <div className="card" data-testid="calculator">
-      <div className="flex items-center justify-between gap-3">
-        <h2 className="h2">খরচের হিসাব</h2>
-        <div role="radiogroup" aria-label="সদস্য সংখ্যা" className="flex rounded-xl bg-gray-100 p-1">
-          {[4, 5].map((n) => (
-            <button
-              key={n}
-              role="radio"
-              aria-checked={seats === n}
-              onClick={() => setSeats(n as 4 | 5)}
-              className={`rounded-lg px-4 py-1.5 text-sm font-semibold ${seats === n ? "bg-white shadow text-brand-700" : "text-gray-600"}`}
-            >
-              {n === 4 ? "৪ জন" : "৫ জন"}
-            </button>
+    <div className="grid gap-4 lg:grid-cols-2" data-testid="calculator">
+      <div className="card space-y-4 p-5">
+        <SeatToggle seats={seats} setSeats={setSeats} />
+        <dl className="space-y-2.5 text-[15.5px]">
+          <div className="flex justify-between gap-3"><dt className="text-mute">মাসিক API ব্যবহার বাজেট (নমুনা)</dt><dd className="num font-semibold">{taka(pool)}</dd></div>
+          <div className="flex justify-between gap-3"><dt className="text-mute">প্রতিজনের ব্যবহারের অংশ</dt><dd className="num font-semibold">{taka(c.share)}</dd></div>
+          <div className="flex justify-between gap-3"><dt className="text-mute">সার্ভিস ফি</dt><dd className="num font-semibold">+ {taka(fee)}</dd></div>
+        </dl>
+        <div className="flex items-end justify-between border-t border-line pt-3">
+          <span className="text-base font-semibold">প্রতিজন দেবেন / ৩০ দিন</span>
+          <span className="num text-[34px] font-extrabold leading-none text-brand-600" data-testid="per-person">{taka(c.each)}</span>
+        </div>
+        <p className="text-[13px] leading-relaxed text-mute">
+          পুরো গ্রুপ মিলে {taka(c.total)}। ব্যবহারের অংশ দিয়ে শুধু Anthropic-এর আসল টোকেন খরচ মেটানো হয় — নির্দিষ্ট পরিমাণ ব্যবহারের নিশ্চয়তা নয়। দাম ওই মাসের জন্য লক থাকে।
+        </p>
+      </div>
+      <div className="card space-y-3 p-5" id="slots">
+        <h3 className="text-lg font-bold">প্রতিদিন প্রত্যেকের নিজের সময়</h3>
+        <p className="text-sm text-mute">বাংলাদেশ সময়। পেমেন্টের আগেই সময় বেছে নেবেন।</p>
+        <ul className="space-y-2">
+          {schedule.map((s, i) => (
+            <li key={`${seats}-${i}`} className="flex items-center gap-3 rounded-xl border border-line bg-ground px-3.5 py-2.5">
+              <span className="h-2.5 w-2.5 rounded-[3px]" style={{ background: COLORS[i] }} aria-hidden />
+              <span className="text-[15px] font-medium">{formatSlot(s)}</span>
+            </li>
           ))}
-        </div>
-      </div>
-      <dl className="mt-4 space-y-2 text-[15px]">
-        <div className="flex justify-between"><dt className="text-gray-600">মাসিক API ব্যবহার বাজেট (নমুনা)</dt><dd>{taka(pool)}</dd></div>
-        <div className="flex justify-between"><dt className="text-gray-600">প্রতিজনের ব্যবহারের অংশ</dt><dd>{taka(c.share)}</dd></div>
-        <div className="flex justify-between"><dt className="text-gray-600">সার্ভিস ফি (প্রতিজন)</dt><dd>+ {taka(fee)}</dd></div>
-        <div className="flex justify-between border-t pt-2 text-lg font-bold">
-          <dt>প্রতিজন দেবেন</dt>
-          <dd className="text-brand-700" data-testid="per-person">{taka(c.each)}</dd>
-        </div>
-        <div className="flex justify-between text-sm text-gray-500"><dt>পুরো গ্রুপ মিলে</dt><dd>{taka(c.total)}</dd></div>
-      </dl>
-      <div className="mt-4 grid grid-cols-2 gap-2 text-center text-sm">
-        {[4, 5].map((n) => (
-          <div key={n} className={`rounded-xl p-2 ${n === seats ? "bg-brand-50 ring-1 ring-brand-500/40" : "bg-gray-50"}`}>
-            <div className="text-gray-600">{n === 4 ? "৪ জন" : "৫ জন"}</div>
-            <div className="font-bold">{taka(calc(n).share)} + {taka(fee)} = {taka(calc(n).each)}</div>
-          </div>
-        ))}
-      </div>
-      <div className="mt-4">
-        <div className="text-sm font-semibold text-gray-700">প্রতিদিন প্রত্যেকের জন্য আলাদা সময় (বাংলাদেশ সময়):</div>
-        <ul className="mt-1 grid grid-cols-1 gap-1 text-sm text-gray-600 sm:grid-cols-2">
-          {schedule.map((s, i) => <li key={i}>• {formatSlot(s)}</li>)}
         </ul>
+        <div className="flex h-2.5 gap-[3px] overflow-hidden rounded-full" aria-hidden>
+          {schedule.map((_, i) => <span key={i} className="flex-1" style={{ background: COLORS[i] }} />)}
+        </div>
       </div>
-      <p className="mt-3 text-xs text-gray-500">
-        ব্যবহারের অংশ দিয়ে Anthropic API-এর আসল খরচ মেটানো হয় — প্রতিটি উত্তরের খরচ টোকেন হিসেবে আপনার অংশ থেকে কাটা হয়। বাজেট একটি নমুনা; নির্দিষ্ট পরিমাণ ব্যবহারের নিশ্চয়তা নয়।
-      </p>
     </div>
   );
 }

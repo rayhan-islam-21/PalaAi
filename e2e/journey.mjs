@@ -111,11 +111,19 @@ try {
   await settle(owner.page);
   await owner.page.getByRole("link", { name: /গ্রুপ তৈরি করুন/ }).waitFor();
   await owner.page.getByRole("link", { name: /নিজের জন্য ক্রেডিট নিন/ }).waitFor();
-  await owner.page.getByRole("link", { name: /কোড দিয়ে গ্রুপে যোগ দিন/ }).waitFor();
+  await owner.page.getByLabel("কোড দিয়ে গ্রুপে যোগ দিন").waitFor();
   assert.equal(await owner.page.getByTestId("per-person").textContent(), "৳৬২৫");
   await owner.page.getByRole("radio", { name: "৫ জন" }).click();
   assert.equal(await owner.page.getByTestId("per-person").textContent(), "৳৫০৫");
   await owner.page.screenshot({ path: `${SHOTS}/01-home.png`, fullPage: true });
+  {
+    const desk = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+    const dp = await desk.newPage();
+    await dp.goto(BASE);
+    await dp.waitForLoadState("networkidle");
+    await dp.screenshot({ path: `${SHOTS}/00-home-desktop.png`, fullPage: true });
+    await desk.close();
+  }
 
   // ---------- Create a 5-person group ----------
   step("owner signs up and creates a 5-person group (slot 09:00–11:30)");

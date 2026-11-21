@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { Markdown } from "./Markdown";
 import { Countdown } from "./Countdown";
 import { takaPrecise } from "@/lib/money";
+import { LogoMark } from "./Icons";
 
 export type ChatMessage = { id: string; role: "user" | "assistant"; content: string; status: string; charge: number | null; fundingSource: string | null };
 export type ConversationItem = { id: string; title: string };
@@ -144,9 +145,9 @@ export function ChatApp(props: Props) {
 
   return (
     <div className="flex h-dvh flex-col bg-[#f6f7f5]">
-      <header className="flex h-12 shrink-0 items-center gap-2 border-b border-black/5 bg-white px-2">
+      <header className="flex h-14 shrink-0 items-center gap-2 border-b border-black/5 bg-white px-2">
         <button className="btn-ghost min-h-9 px-2 py-1 md:hidden" onClick={() => setDrawer(true)} aria-label="চ্যাট তালিকা">☰</button>
-        <Link href="/dashboard" className="font-extrabold text-brand-700">Pala AI</Link>
+        <Link href="/dashboard" className="flex items-center gap-1.5 font-extrabold text-ink" aria-label="Pala AI ড্যাশবোর্ড"><LogoMark size={28} /><span className="num hidden sm:inline">Pala AI</span></Link>
         <span className="truncate text-sm text-gray-500">{props.providerLabel}</span>
         <Link href="/chat" className="btn-secondary ml-auto min-h-9 py-1 text-sm" onClick={() => setDrawer(false)}>+ নতুন চ্যাট</Link>
       </header>
