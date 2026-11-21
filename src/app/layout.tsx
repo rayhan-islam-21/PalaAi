@@ -1,0 +1,30 @@
+import type { Metadata, Viewport } from "next";
+import "./globals.css";
+import { isDemoMode } from "@/lib/env";
+
+export const metadata: Metadata = {
+  title: "Pala AI — বন্ধুরা মিলে AI",
+  description: "বন্ধুদের সাথে মাসিক AI বাজেট ভাগ করুন, অথবা নিজের জন্য প্রিপেইড ক্রেডিট নিন। বিকাশ/নগদে পেমেন্ট।",
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  interactiveWidget: "resizes-content",
+  themeColor: "#059669",
+};
+
+export default function RootLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <html lang="bn">
+      <body className="min-h-dvh font-sans antialiased">
+        {isDemoMode() && (
+          <div className="bg-amber-400 px-3 py-1 text-center text-xs font-semibold text-amber-950">
+            ডেমো মোড — মক AI ও টেস্ট ডেটা। আসল গ্রাহকের জন্য নয়।
+          </div>
+        )}
+        {children}
+      </body>
+    </html>
+  );
+}

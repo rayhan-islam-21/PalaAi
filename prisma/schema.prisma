@@ -1,0 +1,362 @@
+// Pala AI — database schema.
+// All money is stored as integer poisha (1 BDT = 100 poisha).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ---------- Auth (Better Auth core tables) ----------
+
+model User {
+  id            String    @id
+  name          String
+  email         String    @unique
+  emailVerified Boolean   @default(false)
+  image         String?
+  role          String    @default("USER") // USER | ADMIN
+  phone         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  sessions      Session[]
+  accounts      Account[]
+
+  wallet        Wallet?
+  memberships   Membership[]
+  ownedGroups   Group[]          @relation("GroupOwner")
+  conversations Conversation[]
+  payments      PaymentClaim[]   @relation("PaymentUser")
+  reviewed      PaymentClaim[]   @relation("PaymentReviewer")
+  chatRequests  ChatRequest[]
+  shares        CycleShare[]
+  refunds       Refund[]         @relation("RefundUser")
+
+  @@map("user")
+}
+
+model Session {
+  id        String   @id
+  expiresAt DateTime
+  token     String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  ipAddress String?
+  userAgent String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("session")
+}
+
+model Account {
+  id                    String    @id
+  accountId             String
+  providerId            String
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@index([userId])
+  @@map("account")
+}
+
+model Verification {
+  id         String   @id
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([identifier])
+  @@map("verification")
+}
+
+// ---------- Settings ----------
+
+// Singleton row (id = 1). Admin-editable business configuration.
+model Setting {
+  id                   Int      @id @default(1)
+  poolAmount           Int      @default(240000) // sample monthly API usage pool, poisha
+  serviceFeePerMember  Int      @default(2500) // poisha, admin keeps within ৳20–30
+  cycleDays            Int      @default(30)
+  schedule4            Json // [{start:"09:00", end:"12:00"}, ...] Asia/Dhaka
+  schedule5            Json
+  modelId              String   @default("claude-opus-5-5")
+  inputUsdPerMTok      Decimal  @default(4) @db.Decimal(10, 4)
+  outputUsdPerMTok     Decimal  @default(20) @db.Decimal(10, 4)
+  usdToBdt             Decimal  @default(122) @db.Decimal(10, 4)
+  walletMarkupPercent  Int      @default(20)
+  groupMarkupPercent   Int      @default(0)
+  maxOutputTokens      Int      @default(4096)
+  minOutputTokens      Int      @default(256)
+  effort               String   @default("low")
+  topupAmounts         Json // [10000, 25000, 50000]
+  demoNow              DateTime? // demo mode only: simulated clock
+  demoSetAt            DateTime? // real time when demoNow was set
+  updatedAt            DateTime @updatedAt
+}
+
+model PaymentMethod {
+  id             String   @id @default(cuid())
+  provider       String   @unique // BKASH | NAGAD
+  enabled        Boolean  @default(false)
+  receiverNumber String
+  accountType    String   @default("Personal") // Personal | Merchant | Agent
+  instructions   String   @default("")
+  isDemo         Boolean  @default(false)
+  updatedAt      DateTime @updatedAt
+}
+
+// ---------- Wallet ----------
+
+model Wallet {
+  id           String              @id @default(cuid())
+  userId       String              @unique
+  user         User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  balance      Int                 @default(0) // available, poisha
+  reserved     Int                 @default(0) // held for in-flight chats
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+  transactions WalletTransaction[]
+}
+
+model WalletTransaction {
+  id           String   @id @default(cuid())
+  walletId     String
+  wallet       Wallet   @relation(fields: [walletId], references: [id], onDelete: Cascade)
+  type         String // TOPUP | CHAT_CHARGE | ADJUSTMENT
+  amount       Int // signed poisha
+  balanceAfter Int
+  refType      String?
+  refId        String?
+  note         String?
+  createdAt    DateTime @default(now())
+
+  @@unique([type, refType, refId])
+  @@index([walletId, createdAt])
+}
+
+// ---------- Groups ----------
+
+model Group {
+  id          String       @id @default(cuid())
+  name        String
+  ownerId     String
+  owner       User         @relation("GroupOwner", fields: [ownerId], references: [id])
+  seatCount   Int // 4 or 5
+  status      String       @default("FORMING") // FORMING | ACTIVE | EXPIRED | CANCELLED
+  inviteCode  String       @unique
+  schedule    Json // copied from settings at creation; one slot per seat
+  cancelledAt DateTime?
+  cancelReason String?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  memberships Membership[]
+  cycles      GroupCycle[]
+}
+
+model Membership {
+  id        String       @id @default(cuid())
+  groupId   String
+  group     Group        @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User         @relation(fields: [userId], references: [id])
+  slotIndex Int
+  status    String       @default("ACTIVE") // ACTIVE | LEFT
+  joinedAt  DateTime     @default(now())
+  leftAt    DateTime?
+  shares    CycleShare[]
+
+  @@index([groupId])
+  @@index([userId])
+  // Partial unique indexes (one active seat per slot / per user) live in the SQL migration.
+}
+
+model GroupCycle {
+  id             String       @id @default(cuid())
+  groupId        String
+  group          Group        @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  cycleNumber    Int
+  status         String       @default("PENDING") // PENDING | ACTIVE | ENDED | CANCELLED
+  // Quote locked for this cycle
+  poolAmount     Int
+  sharePerMember Int
+  feePerMember   Int
+  pricePerMember Int
+  startsAt       DateTime?
+  endsAt         DateTime?
+  createdAt      DateTime     @default(now())
+  shares         CycleShare[]
+
+  @@unique([groupId, cycleNumber])
+}
+
+model CycleShare {
+  id           String         @id @default(cuid())
+  cycleId      String
+  cycle        GroupCycle     @relation(fields: [cycleId], references: [id], onDelete: Cascade)
+  membershipId String
+  membership   Membership     @relation(fields: [membershipId], references: [id])
+  userId       String
+  user         User           @relation(fields: [userId], references: [id])
+  amountDue    Int
+  status       String         @default("UNPAID") // UNPAID | PAID | VOID | REFUND_DUE | REFUNDED
+  paidAt       DateTime?
+  allowance    Int // usage allowance for this cycle (poisha)
+  remaining    Int // available allowance
+  reserved     Int            @default(0)
+  createdAt    DateTime       @default(now())
+  payments     PaymentClaim[]
+  refunds      Refund[]
+
+  @@unique([cycleId, membershipId])
+  @@index([userId])
+}
+
+// ---------- Payments ----------
+
+model PaymentClaim {
+  id            String      @id @default(cuid())
+  userId        String
+  user          User        @relation("PaymentUser", fields: [userId], references: [id])
+  provider      String // BKASH | NAGAD
+  transactionId String // normalized upper-case
+  senderNumber  String
+  amount        Int
+  purpose       String // WALLET_TOPUP | GROUP_SHARE
+  shareId       String?
+  share         CycleShare? @relation(fields: [shareId], references: [id])
+  status        String      @default("PENDING") // PENDING | APPROVED | REJECTED
+  adminNote     String?
+  reviewedById  String?
+  reviewedBy    User?       @relation("PaymentReviewer", fields: [reviewedById], references: [id])
+  reviewedAt    DateTime?
+  createdAt     DateTime    @default(now())
+
+  @@unique([provider, transactionId])
+  @@index([status, createdAt])
+  @@index([userId])
+}
+
+model Refund {
+  id           String      @id @default(cuid())
+  userId       String
+  user         User        @relation("RefundUser", fields: [userId], references: [id])
+  shareId      String?
+  share        CycleShare? @relation(fields: [shareId], references: [id])
+  paymentId    String?     @unique
+  amount       Int
+  reason       String
+  status       String      @default("PENDING") // PENDING | COMPLETED
+  provider     String?
+  payoutRef    String?
+  adminNote    String?
+  processedById String?
+  processedAt  DateTime?
+  createdAt    DateTime    @default(now())
+
+  @@index([status])
+}
+
+// ---------- Chat ----------
+
+model Conversation {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String    @default("নতুন চ্যাট")
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  messages  Message[]
+
+  @@index([userId, updatedAt])
+}
+
+model Message {
+  id             String       @id @default(cuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  role           String // user | assistant
+  content        String
+  status         String       @default("COMPLETE") // COMPLETE | STREAMING | FAILED
+  fundingSource  String? // WALLET | GROUP
+  charge         Int?
+  requestId      String?
+  createdAt      DateTime     @default(now())
+
+  @@index([conversationId, createdAt])
+}
+
+model ChatRequest {
+  id              String    @id @default(cuid())
+  userId          String
+  user            User      @relation(fields: [userId], references: [id])
+  clientRequestId String
+  conversationId  String
+  source          String // WALLET | GROUP
+  walletId        String?
+  shareId         String?
+  provider        String // anthropic | mock
+  model           String
+  reserved        Int
+  charged         Int       @default(0)
+  providerCost    Int       @default(0) // estimated cost to us, poisha
+  absorbed        Int       @default(0) // cost above reservation we absorbed
+  maxTokens       Int
+  inputTokens     Int       @default(0)
+  outputTokens    Int       @default(0)
+  status          String    @default("RESERVED") // RESERVED | COMPLETED | FAILED | RELEASED
+  error           String?
+  userMessageId   String?
+  assistantMessageId String?
+  createdAt       DateTime  @default(now())
+  settledAt       DateTime?
+
+  @@unique([userId, clientRequestId])
+  @@index([status, createdAt])
+  @@index([shareId])
+}
+
+// ---------- Ledger & audit ----------
+
+model LedgerEntry {
+  id             String   @id @default(cuid())
+  idempotencyKey String   @unique
+  kind           String // PAYMENT_IN | WALLET_CREDIT | WALLET_USAGE | GROUP_SHARE_PAID | SERVICE_FEE | GROUP_USAGE | PROVIDER_COST | REFUND_DUE | REFUND_PAID
+  amount         Int // poisha, positive
+  userId         String?
+  refType        String?
+  refId          String?
+  memo           String?
+  createdAt      DateTime @default(now())
+
+  @@index([kind, createdAt])
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  actorId    String?
+  action     String
+  entityType String
+  entityId   String
+  data       Json?
+  createdAt  DateTime @default(now())
+
+  @@index([entityType, entityId])
+  @@index([createdAt])
+}
