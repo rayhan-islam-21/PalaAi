@@ -14,6 +14,8 @@ const PASSWORD = "demo12345";
 
 async function main() {
   await getSettings(db);
+  // Recommended business settings: Sonnet 5.5, ৳130/$, 33% markup (= 25% profit).
+  await db.setting.update({ where: { id: 1 }, data: { modelId: "claude-sonnet-5-5", inputUsdPerMTok: 2, outputUsdPerMTok: 10, usdToBdt: 130, walletMarkupPercent: 33 } });
   await upsertPasswordUser(db, { email: "admin@pala.test", password: PASSWORD, name: "Admin", role: "ADMIN" });
   const names = ["রাফি", "নুসরাত", "তানভীর", "সাদিয়া", "আরিফ", "মিম"];
   for (let i = 0; i < names.length; i++) {

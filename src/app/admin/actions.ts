@@ -254,8 +254,24 @@ export async function saveBusinessSettingsAction(_: ActionState, fd: FormData): 
   if (!(rate >= 50 && rate <= 500)) return { error: "Dollar rate looks wrong (৳ per $1, e.g. 130)." };
   const wm = Math.round(num("walletMarkupPercent"));
   if (!(wm >= 0 && wm <= 200)) return { error: "Markup must be 0–200%." };
-  const topups = str(fd, "topupAmounts").split(",").map((x) => parseTaka(x.trim())).filter((x): x is number => x !== null && x >= 1000);
-  if (topups.length === 0) return { error: "Enter at least one top-up amount (৳10 or more)." };
+  let packs: { amount: number; bonusPercent: number; name: string }[];
+  try {
+    packs = (JSON.parse(str(fd, "packs") || "[]") as { amount: number; bonusPercent: number; name: string }[]).map((p) => ({
+      amount: Math.round(Number(p.amount)),
+      bonusPercent: Math.round(Number(p.bonusPercent)),
+      name: String(p.name ?? "").trim().slice(0, 20) || "Pack",
+    }));
+  } catch {
+    return { error: "Packs could not be read." };
+  }
+  if (!packs.length) return { error: "Add at least one pack." };
+  if (packs.some((p) => !(p.amount >= 1000 && p.amount <= 10_000_000))) return { error: "Each pack price must be ৳10 or more." };
+  if (packs.some((p) => !(p.bonusPercent >= 0 && p.bonusPercent <= 50))) return { error: "Pack bonus must be 0–50%." };
+  if (new Set(packs.map((p) => p.amount)).size !== packs.length) return { error: "Two packs have the same price." };
+  packs.sort((a, b) => a.amount - b.amount);
+  const firstPct = Math.round(num("firstTopupBonusPercent"));
+  const firstCap = parseTaka(str(fd, "firstTopupBonusCap") || "0");
+  if (!(firstPct >= 0 && firstPct <= 50) || firstCap === null) return { error: "First top-up bonus must be 0–50% with a valid maximum." };
   const maxT = Math.round(num("maxOutputTokens")), minT = Math.round(num("minOutputTokens"));
   if (!(maxT >= 256 && maxT <= 64000) || !(minT >= 16 && minT <= maxT)) return { error: "Reply length limits invalid (max 256–64000, min 16–max)." };
   const effort = str(fd, "effort");
@@ -267,7 +283,10 @@ export async function saveBusinessSettingsAction(_: ActionState, fd: FormData): 
     outputUsdPerMTok: new Prisma.Decimal(outPrice),
     usdToBdt: new Prisma.Decimal(rate),
     walletMarkupPercent: wm,
-    topupAmounts: [...new Set(topups)].sort((a, b) => a - b),
+    packs,
+    topupAmounts: packs.map((p) => p.amount),
+    firstTopupBonusPercent: firstPct,
+    firstTopupBonusCap: firstCap,
     maxOutputTokens: maxT,
     minOutputTokens: minT,
     effort,

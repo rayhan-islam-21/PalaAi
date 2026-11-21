@@ -11,6 +11,8 @@ export async function resetDb() {
     SELECT tablename FROM pg_tables WHERE schemaname = 'public' AND tablename <> '_prisma_migrations'`;
   await prisma.$executeRawUnsafe(`TRUNCATE ${tables.map((t) => `"${t.tablename}"`).join(", ")} CASCADE`);
   await getSettings(prisma);
+  // Bonuses are tested explicitly in bonus.test.ts; keep other tests' arithmetic simple.
+  await prisma.setting.update({ where: { id: 1 }, data: { firstTopupBonusPercent: 0, packs: [{ amount: 10000, bonusPercent: 0, name: "Mini" }, { amount: 25000, bonusPercent: 0, name: "Plus" }, { amount: 50000, bonusPercent: 0, name: "Pro" }] } });
   await prisma.paymentMethod.create({ data: { provider: "BKASH", enabled: true, receiverNumber: "01700000000", instructions: "test" } });
 }
 

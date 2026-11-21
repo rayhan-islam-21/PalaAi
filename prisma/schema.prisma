@@ -107,7 +107,10 @@ model Setting {
   maxOutputTokens      Int      @default(4096)
   minOutputTokens      Int      @default(256)
   effort               String   @default("low")
-  topupAmounts         Json // [10000, 25000, 50000]
+  topupAmounts         Json // legacy: [10000, 25000, 50000]; packs below are used instead
+  packs                Json? // [{ "amount": 10000, "bonusPercent": 0, "name": "Mini" }, ...]
+  firstTopupBonusPercent Int @default(20)
+  firstTopupBonusCap   Int      @default(10000) // poisha: max first-top-up bonus (৳100)
   demoNow              DateTime? // demo mode only: simulated clock
   demoSetAt            DateTime? // real time when demoNow was set
   supportEmail         String   @default("")

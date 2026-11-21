@@ -98,6 +98,11 @@ try {
   await u.page.getByRole("link", { name: /ক্রেডিট কিনুন/ }).first().waitFor();
   const html = await u.page.content();
   assert.ok(!html.includes("গ্রুপ তৈরি করুন"), "no group CTA on home");
+  await u.page.getByTestId("usage-picker").waitFor();
+  await u.page.getByTestId("comparison").waitFor();
+  await u.page.getByTestId("first-bonus").waitFor();
+  await u.page.getByRole("radio", { name: /সারাদিন/ }).click();
+  await u.page.getByTestId("usage-picker").getByText(/Max/).waitFor();
   await u.page.screenshot({ path: `${SHOTS}/01-home.png`, fullPage: true });
   {
     const desk = await browser.newContext({ viewport: { width: 1280, height: 900 } });
@@ -118,7 +123,9 @@ try {
 
   step("top up ৳100, duplicate TrxID refused");
   await u.page.goto(`${BASE}/wallet`);
-  await u.page.getByTestId("topup-100").click();
+  await u.page.getByTestId("pack-100").getByRole("link").click();
+  await u.page.waitForURL(/\/pay\?/);
+  assert.match(await u.page.getByTestId("receive").textContent(), /৳১২০/);
   const id = `WAL${run}`.toUpperCase();
   await pay(u, id);
   await u.page.waitForURL(/\/payments\?submitted=1/);
@@ -129,7 +136,7 @@ try {
   step("admin approves; balance appears");
   assert.equal(await approveAll(admin), 1);
   await u.page.goto(`${BASE}/dashboard`);
-  assert.equal(await u.page.getByTestId("wallet-balance").textContent(), "৳১০০");
+  assert.equal(await u.page.getByTestId("wallet-balance").textContent(), "৳১২০"); // ৳100 + 20% first top-up bonus
 
   step("chat uses the wallet by default and shows the charge");
   await u.page.goto(`${BASE}/chat`);
@@ -150,9 +157,10 @@ try {
 
   step("wallet history shows top-up and chat charge");
   await u.page.goto(`${BASE}/wallet`);
-  assert.notEqual(await u.page.getByTestId("wallet-balance").textContent(), "৳১০০");
+  assert.notEqual(await u.page.getByTestId("wallet-balance").textContent(), "৳১২০");
   const hist = await u.page.getByTestId("wallet-history").textContent();
   assert.match(hist, /টপ-আপ/);
+  assert.match(hist, /বোনাস/);
   assert.match(hist, /চ্যাট খরচ/);
   await u.page.screenshot({ path: `${SHOTS}/04-wallet.png`, fullPage: true });
   await u.page.goto(`${BASE}/dashboard`);

@@ -5,7 +5,11 @@ import { getUser } from "@/lib/session";
 import { AppShell } from "@/components/AppShell";
 import { IconChart, IconCheck, IconClock, IconLang, IconLock, IconPhone, IconRefund, IconShield, IconWallet, IconChat } from "@/components/Icons";
 import { takaPrecise, taka, bnNum } from "@/lib/money";
-import { approxMessages, exampleCharges } from "@/lib/estimates";
+import { exampleCharges } from "@/lib/estimates";
+import { PackCards } from "@/components/PackCards";
+import { UsagePicker } from "@/components/UsagePicker";
+import { topupBonus } from "@/lib/packs";
+import { customerCharge } from "@/lib/pricing";
 
 export const dynamic = "force-dynamic";
 
@@ -29,6 +33,7 @@ const FAQ = [
   ["এটা কি Claude Pro সাবস্ক্রিপশন?", "না। Pala AI আমাদের নিজস্ব চ্যাট অ্যাপ, Anthropic-এর অফিসিয়াল API দিয়ে Claude মডেল চালায়। claude.ai, Claude Code বা Pro ফিচারের অ্যাক্সেস দেয় না, আর কোনো অ্যাকাউন্ট বা পাসওয়ার্ড শেয়ার করা হয় না।"],
   ["প্রতি মেসেজে কত টাকা কাটে?", "যতটুকু লেখা AI পড়ে ও লেখে (টোকেন), সেই হিসাবে। ছোট প্রশ্নে কয়েক পয়সা থেকে ১ টাকা, লম্বা লেখা বা কোডে কয়েক টাকা। প্রতিটি উত্তরের নিচে ঠিক কত কাটল আর কত বাকি তা দেখানো হয়।"],
   ["ব্যালান্স কি মেয়াদ শেষে বাতিল হয়?", "না, ওয়ালেটের ব্যালান্সের কোনো মেয়াদ নেই।"],
+  ["বোনাস কীভাবে কাজ করে?", "বড় প্যাকে বেশি বোনাস ব্যালান্স যোগ হয়। প্রথমবার টপ-আপে আলাদা বোনাস পাবেন — প্যাকের বোনাস আর প্রথম টপ-আপ বোনাসের মধ্যে যেটা বেশি সেটা যোগ হবে। বোনাস পেমেন্ট অনুমোদনের সাথে সাথে ওয়ালেটে আসে।"],
   ["পেমেন্ট কীভাবে যাচাই হয়?", "আপনি বিকাশ/নগদে টাকা পাঠিয়ে ট্রানজ্যাকশন আইডি জমা দেন। আমরা আমাদের স্টেটমেন্টের সাথে মিলিয়ে অনুমোদন দিই। অবস্থা আপনার পেমেন্ট পেজে দেখা যায়।"],
   ["কীভাবে কম খরচে বেশি ব্যবহার করব?", "নতুন বিষয়ে নতুন চ্যাট শুরু করুন — পুরোনো লম্বা চ্যাটে প্রতিবার আগের সব লেখাও AI-কে আবার পড়তে হয়, তাই খরচ বাড়ে।"],
 ];
@@ -37,6 +42,8 @@ export default async function Home() {
   const [settings, user] = await Promise.all([getSettings(prisma), getUser()]);
   const examples = exampleCharges(settings);
   const minTopup = Math.min(...settings.topupAmounts);
+  const firstTopup = !user || (await prisma.paymentClaim.count({ where: { userId: user.id, purpose: "WALLET_TOPUP", status: "APPROVED" } })) === 0;
+  const perMessage = customerCharge(settings.rates, settings.walletMarkupPercent, 3000, 700);
   const buyHref = user ? "/wallet" : "/signup?next=/wallet";
 
   return (
@@ -51,7 +58,7 @@ export default async function Home() {
               Claude AI ব্যবহার করুন — <span className="text-brand-600">লিমিটের অপেক্ষা ছাড়া, বিকাশে পেমেন্ট</span>
             </h1>
             <p className="max-w-xl text-[16.5px] leading-relaxed text-[#42524b] lg:text-[19px]">
-              {taka(minTopup)} থেকে ক্রেডিট কিনুন, যতটুকু ব্যবহার ততটুকু খরচ। প্রতিটি উত্তরের খরচ আর বাকি ব্যালান্স সবসময় চোখের সামনে।
+              {taka(minTopup)} থেকে ক্রেডিট কিনুন, যতটুকু ব্যবহার ততটুকু খরচ। মাসিক চার্জ নেই, দৈনিক লিমিট নেই, ব্যালান্সের মেয়াদ নেই{settings.firstTopupBonusPercent > 0 ? ` — আর প্রথম টপ-আপে +${bnNum(settings.firstTopupBonusPercent)}% বোনাস` : ""}।
             </p>
             <div className="grid gap-2.5 sm:flex sm:flex-wrap">
               <Link href={buyHref} className="flex min-h-[54px] items-center justify-center gap-2 rounded-[14px] bg-brand-600 px-6 text-[17px] font-bold text-white hover:bg-brand-700">
@@ -98,27 +105,15 @@ export default async function Home() {
       <section id="pricing" className="mx-auto max-w-6xl scroll-mt-20 space-y-6 px-5 py-12 lg:py-20">
         <div className="space-y-1.5 text-center">
           <div className="eyebrow">স্বচ্ছ দাম</div>
-          <h2 className="text-2xl font-bold lg:text-4xl">যতটুকু ব্যবহার, ততটুকু খরচ</h2>
+          <h2 className="text-2xl font-bold lg:text-4xl">যতটুকু ব্যবহার, ততটুকু খরচ — বড় প্যাকে বেশি বোনাস</h2>
           <p className="mx-auto max-w-2xl text-[15px] text-mute lg:text-[17px]">কোনো মাসিক চার্জ নেই, ব্যালান্সের মেয়াদ নেই। প্রতিটি উত্তরে AI যতটুকু লেখা পড়ে ও লেখে, সেই হিসাবে কাটা হয়।</p>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-3">
-          {settings.topupAmounts.map((a, i) => (
-            <div key={a} className={`relative flex flex-col gap-3 rounded-[22px] bg-white p-6 ${i === 1 ? "border-2 border-brand-600 shadow-[0_16px_40px_rgba(4,120,87,0.12)]" : "border border-line"}`}>
-              {i === 1 && <span className="absolute -top-3.5 left-6 rounded-full bg-brand-600 px-3 py-1 text-[13px] font-bold text-white">সবচেয়ে জনপ্রিয়</span>}
-              <div className={`num text-[42px] font-extrabold ${i === 1 ? "text-brand-600" : ""}`}>{taka(a)}</div>
-              <div className="text-[15px] text-mute">প্রায় <strong className="text-ink">{bnNum(approxMessages(settings, a))}টি</strong> সাধারণ মেসেজ*</div>
-              <ul className="space-y-2 text-[15.5px]">
-                {["মেয়াদ শেষ হয় না", "যখন খুশি ব্যবহার", "প্রতি উত্তরের খরচ দেখা যায়"].map((f) => (
-                  <li key={f} className="flex items-center gap-2"><IconCheck size={16} className="text-brand-600" />{f}</li>
-                ))}
-              </ul>
-              <Link href={user ? `/pay?purpose=WALLET_TOPUP&amount=${a}` : "/signup?next=/wallet"} className={`mt-auto flex min-h-[50px] items-center justify-center rounded-[13px] text-base font-bold ${i === 1 ? "bg-brand-600 text-white hover:bg-brand-700" : "border-[1.5px] border-brand-600 text-brand-900 hover:bg-brand-50"}`}>
-                {taka(a)} কিনুন
-              </Link>
-            </div>
-          ))}
-        </div>
+        <UsagePicker
+          perMessage={perMessage}
+          packs={settings.packs.map((p) => ({ amount: p.amount, name: p.name, credits: p.amount + topupBonus(p.amount, p, firstTopup, settings).bonus }))}
+        />
+        <PackCards settings={settings} firstTopup={firstTopup} loggedIn={!!user} />
 
         <div className="card space-y-3 p-5">
           <h3 className="text-lg font-bold">কোন কাজে কত খরচ হয় (আনুমানিক)</h3>
@@ -137,6 +132,41 @@ export default async function Home() {
             *বাংলায় লেখা উত্তরে ইংরেজির চেয়ে বেশি খরচ হয়, আর লম্বা চ্যাটে প্রতিবার আগের লেখাও পড়তে হয়। আসল খরচ প্রতিটি উত্তরের নিচে দেখানো হয়।
           </p>
         </div>
+      </section>
+
+      <section className="mx-auto max-w-4xl space-y-5 px-5 pb-12 lg:pb-20">
+        <div className="space-y-1.5 text-center">
+          <div className="eyebrow">তুলনা</div>
+          <h2 className="text-2xl font-bold lg:text-4xl">মাসিক সাবস্ক্রিপশনের চেয়ে কেন ভালো</h2>
+        </div>
+        <div className="overflow-x-auto rounded-2xl border border-line bg-white" data-testid="comparison">
+          <table className="w-full min-w-[520px] text-left text-[15px]">
+            <thead>
+              <tr className="border-b border-line">
+                <th className="px-4 py-3 font-semibold text-mute"></th>
+                <th className="bg-mint px-4 py-3 font-bold text-brand-900">Pala AI</th>
+                <th className="px-4 py-3 font-semibold text-mute">সাধারণ মাসিক AI প্ল্যান</th>
+              </tr>
+            </thead>
+            <tbody>
+              {[
+                ["শুরু করতে", `${taka(minTopup)}, একবার`, "প্রতি মাসে ৳৪০০–১,৫০০"],
+                ["দৈনিক লিমিট", "নেই — ব্যালান্স থাকলেই চলবে", "আছে (যেমন বড় মডেলে দিনে ১৫টি)"],
+                ["না-ব্যবহৃত টাকা", "থেকে যায়, মেয়াদ নেই", "মাস শেষে বাতিল"],
+                ["খরচের হিসাব", "প্রতিটি উত্তরে আসল খরচ দেখা যায়", "অস্পষ্ট ক্রেডিট"],
+                ["মাসিক বাধ্যবাধকতা", "নেই", "রিনিউ করতে হয়"],
+                ["ভাষা", "বাংলা", "বেশিরভাগ ইংরেজি"],
+              ].map(([k, a, b]) => (
+                <tr key={k} className="border-b border-line last:border-0">
+                  <td className="px-4 py-3 font-semibold">{k}</td>
+                  <td className="bg-mint/50 px-4 py-3"><span className="flex items-start gap-2"><IconCheck size={16} className="mt-1 shrink-0 text-brand-600" />{a}</span></td>
+                  <td className="px-4 py-3 text-mute">{b}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <p className="text-center text-[13px] text-mute">সাধারণ বাজারের মাসিক প্ল্যানের ভিত্তিতে তুলনা; নির্দিষ্ট কোনো প্রতিষ্ঠানের নয়।</p>
       </section>
 
       <section id="how" className="scroll-mt-20 bg-white">

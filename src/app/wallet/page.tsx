@@ -4,20 +4,23 @@ import { requireUser } from "@/lib/session";
 import { getSettings } from "@/lib/settings";
 import { AppShell } from "@/components/AppShell";
 import { StatusBadge } from "@/components/Badges";
+import { PackCards } from "@/components/PackCards";
 import { taka, takaPrecise } from "@/lib/money";
 import { formatDhaka } from "@/lib/slots";
 
 export const dynamic = "force-dynamic";
 
-const TYPE_LABEL: Record<string, string> = { TOPUP: "টপ-আপ", CHAT_CHARGE: "চ্যাট খরচ", ADJUSTMENT: "সমন্বয়" };
+const TYPE_LABEL: Record<string, string> = { TOPUP: "টপ-আপ", BONUS: "বোনাস", CHAT_CHARGE: "চ্যাট খরচ", ADJUSTMENT: "সমন্বয়" };
 
 export default async function WalletPage() {
   const user = await requireUser("/wallet");
-  const [settings, wallet, pending] = await Promise.all([
+  const [settings, wallet, pending, approvedTopups] = await Promise.all([
     getSettings(prisma),
     prisma.wallet.findUnique({ where: { userId: user.id }, include: { transactions: { orderBy: { createdAt: "desc" }, take: 50 } } }),
     prisma.paymentClaim.findMany({ where: { userId: user.id, purpose: "WALLET_TOPUP", status: "PENDING" }, orderBy: { createdAt: "desc" } }),
+    prisma.paymentClaim.count({ where: { userId: user.id, purpose: "WALLET_TOPUP", status: "APPROVED" } }),
   ]);
+  const firstTopup = approvedTopups === 0;
   return (
     <AppShell>
       <h1 className="h1">আমার ওয়ালেট</h1>
@@ -27,15 +30,8 @@ export default async function WalletPage() {
         {(wallet?.reserved ?? 0) > 0 && <div className="text-sm opacity-80">চলমান চ্যাটের জন্য আটকে আছে: {takaPrecise(wallet!.reserved)}</div>}
       </div>
 
-      <h2 className="h2 mt-5">টপ-আপ করুন</h2>
-      <div className="mt-2 grid grid-cols-3 gap-2">
-        {settings.topupAmounts.map((a) => (
-          <Link key={a} href={`/pay?purpose=WALLET_TOPUP&amount=${a}`} className="card text-center text-lg font-bold hover:ring-brand-500" data-testid={`topup-${a / 100}`}>
-            {taka(a)}
-          </Link>
-        ))}
-      </div>
-      <p className="muted mt-2">যখন খুশি চ্যাট করুন — প্রতিটি উত্তরের আসল টোকেন খরচ অনুযায়ী টাকা কাটা হয়। মেয়াদ নেই।</p>
+      <h2 className="h2 mt-5 mb-3">টপ-আপ করুন</h2>
+      <PackCards settings={settings} firstTopup={firstTopup} loggedIn />
 
       {pending.length > 0 && (
         <div className="card mt-4">

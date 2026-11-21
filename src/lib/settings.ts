@@ -1,6 +1,7 @@
 import type { Db, Tx } from "./db";
 import { DEFAULT_SCHEDULE_4, DEFAULT_SCHEDULE_5, type Slot } from "./slots";
 import type { Rates } from "./pricing";
+import { normalizePacks, type Pack } from "./packs";
 
 export type AppSettings = {
   poolAmount: number;
@@ -16,6 +17,9 @@ export type AppSettings = {
   minOutputTokens: number;
   effort: string;
   topupAmounts: number[];
+  packs: Pack[];
+  firstTopupBonusPercent: number;
+  firstTopupBonusCap: number;
   demoNow: Date | null;
   supportEmail: string;
   supportWhatsapp: string;
@@ -56,7 +60,12 @@ export async function getSettings(db: Db | Tx): Promise<AppSettings> {
     maxOutputTokens: s.maxOutputTokens,
     minOutputTokens: s.minOutputTokens,
     effort: s.effort,
-    topupAmounts: s.topupAmounts as number[],
+    ...(() => {
+      const packs = normalizePacks(s.packs, s.topupAmounts as number[]);
+      return { packs, topupAmounts: packs.map((p) => p.amount) };
+    })(),
+    firstTopupBonusPercent: s.firstTopupBonusPercent,
+    firstTopupBonusCap: s.firstTopupBonusCap,
     demoNow: s.demoNow,
     supportEmail: s.supportEmail,
     supportWhatsapp: s.supportWhatsapp,

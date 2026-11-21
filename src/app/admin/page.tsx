@@ -22,7 +22,9 @@ async function money(since?: Date) {
   const k = (kind: string) => byKind.find((x) => x.kind === kind)?._sum.amount ?? 0;
   const charged = usage._sum.charged ?? 0;
   const cost = usage._sum.providerCost ?? 0;
-  return { collected: k("PAYMENT_IN"), charged, cost, profit: charged - cost, messages: usage._count, newCustomers };
+  const bonus = k("BONUS_CREDIT") + k("ADMIN_CREDIT");
+  // Bonus/free credit is not real money: count it as a cost when granted (conservative).
+  return { collected: k("PAYMENT_IN"), charged, cost, bonus, profit: charged - cost - bonus, messages: usage._count, newCustomers };
 }
 
 export default async function AdminHome() {
@@ -88,7 +90,7 @@ export default async function AdminHome() {
           <Stat label="Money received" value={takaPlain(month.collected)} hint="Approved bKash/Nagad payments" />
           <Stat label="Customers used" value={takaPlain(month.charged)} hint={`${month.messages} AI replies`} />
           <Stat label="AI cost (Anthropic)" value={takaPlain(month.cost)} />
-          <Stat label="Your profit" value={takaPlain(month.profit)} hint="Used − AI cost" tone="bg-brand-50" />
+          <Stat label="Your profit" value={takaPlain(month.profit)} hint={`Used − AI cost − bonuses given (${takaPlain(month.bonus)})`} tone="bg-brand-50" />
           <Stat label="New customers" value={String(month.newCustomers)} />
         </div>
       </section>
@@ -99,7 +101,7 @@ export default async function AdminHome() {
           <Stat label="Money received" value={takaPlain(all.collected)} />
           <Stat label="Customers used" value={takaPlain(all.charged)} hint={`${all.messages} AI replies`} />
           <Stat label="AI cost (Anthropic)" value={takaPlain(all.cost)} />
-          <Stat label="Your profit" value={takaPlain(all.profit)} tone="bg-brand-50" />
+          <Stat label="Your profit" value={takaPlain(all.profit)} hint={`after ${takaPlain(all.bonus)} bonuses`} tone="bg-brand-50" />
           <Stat label="Customer balances (owed)" value={takaPlain(owed)} hint="Paid but not used yet — keep this much (×0.75) in your Anthropic credit" tone="bg-amber-50" />
         </div>
       </section>

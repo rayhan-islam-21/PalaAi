@@ -9,7 +9,9 @@ type Initial = {
   output: number;
   usdToBdt: number;
   markup: number;
-  topups: string;
+  packs: { amount: number; bonusPercent: number; name: string }[];
+  firstBonusPercent: number;
+  firstBonusCap: number;
   maxOutputTokens: number;
   minOutputTokens: number;
   effort: string;
@@ -27,6 +29,13 @@ export function BusinessSettings({ action, models, initial }: { action: FormActi
   const [markup, setMarkup] = useState(String(initial.markup));
   const [cin, setCin] = useState(String(initial.input));
   const [cout, setCout] = useState(String(initial.output));
+  const [packs, setPacks] = useState(initial.packs.map((p) => ({ name: p.name, amount: String(p.amount / 100), bonus: String(p.bonusPercent) })));
+  const [firstPct, setFirstPct] = useState(String(initial.firstBonusPercent));
+  const [firstCap, setFirstCap] = useState(String(initial.firstBonusCap / 100));
+  const packMargin = (amountTk: number, bonusTk: number) => {
+    const cost = ((amountTk + bonusTk) * 100) / (100 + (Number(markup) || 0));
+    return ((amountTk - cost - amountTk * 0.015) / amountTk) * 100;
+  };
 
   const m = models.find((x) => x.id === model);
   const inP = m ? m.input : Number(cin) || 0;
@@ -87,9 +96,48 @@ export function BusinessSettings({ action, models, initial }: { action: FormActi
         <p className="col-span-2 text-xs text-mute md:col-span-4">Typical message = about 3,000 tokens read + 700 written (a Bangla answer in an ongoing chat). Real charges use the actual tokens of each reply.</p>
       </div>
 
-      <div>
-        <label className="label" htmlFor="topupAmounts">Top-up options (৳, comma separated)</label>
-        <input id="topupAmounts" name="topupAmounts" className="input max-w-md" defaultValue={initial.topups} required />
+      <div className="space-y-2">
+        <div className="label">Top-up packs</div>
+        <input type="hidden" name="packs" value={JSON.stringify(packs.map((p) => ({ name: p.name, amount: Math.round(Number(p.amount) * 100), bonusPercent: Number(p.bonus) || 0 })))} />
+        <div className="overflow-x-auto rounded-xl border border-line">
+          <table className="data-table">
+            <thead><tr><th>Name</th><th>Price (৳)</th><th>Bonus %</th><th>Customer gets</th><th>Profit if fully used*</th><th>Profit if first top-up*</th><th></th></tr></thead>
+            <tbody>
+              {packs.map((p, i) => {
+                const amt = Number(p.amount) || 0;
+                const safe = Math.max(0, Math.floor(amt * ((1 - 0.015 - 0.05) * (100 + (Number(markup) || 0)) / 100 - 1)));
+                const bonus = Math.min(safe, Math.floor((amt * (Number(p.bonus) || 0)) / 100));
+                const first = Math.min(safe, Math.max(bonus, Math.min(Math.floor((amt * (Number(firstPct) || 0)) / 100), Number(firstCap) || 0)));
+                const m1 = packMargin(amt, bonus);
+                const m2 = packMargin(amt, first);
+                const set = (k: "name" | "amount" | "bonus", v: string) => setPacks((ps) => ps.map((x, j) => (j === i ? { ...x, [k]: v } : x)));
+                return (
+                  <tr key={i}>
+                    <td><input className="input min-w-24 py-1.5" value={p.name} onChange={(e) => set("name", e.target.value)} aria-label="Pack name" /></td>
+                    <td><input className="input w-24 py-1.5" inputMode="numeric" value={p.amount} onChange={(e) => set("amount", e.target.value)} aria-label="Price" /></td>
+                    <td><input className="input w-20 py-1.5" inputMode="numeric" value={p.bonus} onChange={(e) => set("bonus", e.target.value)} aria-label="Bonus percent" /></td>
+                    <td className="num">৳{amt + bonus}</td>
+                    <td className={`num font-semibold ${m1 < 5 ? "text-red-700" : "text-brand-700"}`}>{m1.toFixed(1)}%</td>
+                    <td className={`num font-semibold ${m2 < 5 ? "text-red-700" : "text-brand-700"}`}>{m2.toFixed(1)}%</td>
+                    <td><button type="button" className="text-sm text-red-700" onClick={() => setPacks((ps) => ps.filter((_, j) => j !== i))} aria-label="Remove pack">✕</button></td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+        <button type="button" className="text-sm font-semibold text-brand-700" onClick={() => setPacks((ps) => [...ps, { name: "New", amount: "200", bonus: "0" }])}>+ Add pack</button>
+        <div className="grid max-w-lg grid-cols-2 gap-3 pt-1">
+          <div>
+            <label className="label" htmlFor="firstTopupBonusPercent">First top-up bonus (%)</label>
+            <input id="firstTopupBonusPercent" name="firstTopupBonusPercent" className="input" inputMode="numeric" value={firstPct} onChange={(e) => setFirstPct(e.target.value)} />
+          </div>
+          <div>
+            <label className="label" htmlFor="firstTopupBonusCap">Max first bonus (৳)</label>
+            <input id="firstTopupBonusCap" name="firstTopupBonusCap" className="input" inputMode="numeric" value={firstCap} onChange={(e) => setFirstCap(e.target.value)} />
+          </div>
+        </div>
+        <p className="text-xs text-mute">*Worst case: the customer uses every taka of balance incl. bonus, after ~1.5% bKash fee. Pack bonus and first bonus don&apos;t stack — the larger one is given. Safety cap: if a bonus would push profit below 5%, it is automatically reduced (shown here as the real amount the customer gets). Raise the markup to 33% to allow the full bonuses.</p>
       </div>
 
       <details className="rounded-xl border border-line p-3">

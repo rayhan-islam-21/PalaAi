@@ -4,6 +4,7 @@ import { AppError } from "../errors";
 import { getSettings } from "../settings";
 import { audit, ledger } from "../audit";
 import { maybeActivate } from "./groups";
+import { topupBonus } from "../packs";
 
 export const PROVIDERS = ["BKASH", "NAGAD"] as const;
 export type Provider = (typeof PROVIDERS)[number];
@@ -118,7 +119,15 @@ export async function approveClaim(db: Db, input: { adminId: string; claimId: st
     let outcome: "WALLET_CREDITED" | "SHARE_PAID" | "REFUND_CREATED" = "WALLET_CREDITED";
     let activated = false;
     if (claim.purpose === "WALLET_TOPUP") {
-      const wallet = await tx.wallet.update({
+      // Lock the wallet so concurrent approvals can't both grant a "first top-up" bonus.
+      await tx.$queryRaw`SELECT id FROM "Wallet" WHERE "userId" = ${claim.userId} FOR UPDATE`;
+      const settings = await getSettings(tx);
+      const previous = await tx.paymentClaim.count({
+        where: { userId: claim.userId, purpose: "WALLET_TOPUP", status: "APPROVED", id: { not: claim.id } },
+      });
+      const pack = settings.packs.find((p) => p.amount === claim.amount);
+      const { bonus, kind } = topupBonus(claim.amount, pack, previous === 0, settings);
+      let wallet = await tx.wallet.update({
         where: { userId: claim.userId },
         data: { balance: { increment: claim.amount } },
       });
@@ -134,6 +143,21 @@ export async function approveClaim(db: Db, input: { adminId: string; claimId: st
         },
       });
       await ledger(tx, { key: `wallet-credit:${claim.id}`, kind: "WALLET_CREDIT", amount: claim.amount, userId: claim.userId, refType: "PaymentClaim", refId: claim.id });
+      if (bonus > 0) {
+        wallet = await tx.wallet.update({ where: { id: wallet.id }, data: { balance: { increment: bonus } } });
+        await tx.walletTransaction.create({
+          data: {
+            walletId: wallet.id,
+            type: "BONUS",
+            amount: bonus,
+            balanceAfter: wallet.balance,
+            refType: "PaymentClaim",
+            refId: claim.id,
+            note: kind === "FIRST" ? "প্রথম টপ-আপ বোনাস" : `${pack?.name ?? ""} প্যাক বোনাস`.trim(),
+          },
+        });
+        await ledger(tx, { key: `bonus:${claim.id}`, kind: "BONUS_CREDIT", amount: bonus, userId: claim.userId, refType: "PaymentClaim", refId: claim.id, memo: kind });
+      }
     } else {
       const share = claim.shareId ? await tx.cycleShare.findUnique({ where: { id: claim.shareId } }) : null;
       if (share) await tx.$queryRaw`SELECT id FROM "GroupCycle" WHERE id = ${share.cycleId} FOR UPDATE`;
