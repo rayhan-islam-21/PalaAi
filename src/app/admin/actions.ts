@@ -226,3 +226,49 @@ export async function tokenCalcAction(_: TokenCalcState, fd: FormData): Promise<
     return { ...keep, error: `Token counting failed: ${e instanceof Error ? e.message : String(e)}` };
   }
 }
+
+/** Simple wallet-only settings: model (prices from the published table), exchange rate, markup, top-ups, limits. */
+export async function saveBusinessSettingsAction(_: ActionState, fd: FormData): Promise<ActionState> {
+  const admin = await requireAdmin();
+  const num = (k: string) => Number(str(fd, k));
+  const choice = str(fd, "model");
+  let modelId: string, inPrice: number, outPrice: number;
+  const known = MODEL_PRICES.find((m) => m.id === choice);
+  if (known) {
+    modelId = known.id;
+    inPrice = known.input;
+    outPrice = known.output;
+  } else {
+    modelId = str(fd, "customModelId");
+    inPrice = num("customInput");
+    outPrice = num("customOutput");
+    if (!/^[a-z0-9.\-]{3,64}$/.test(modelId)) return { error: "Custom model: enter a valid model ID." };
+    if (!(inPrice > 0) || !(outPrice > 0)) return { error: "Custom model: enter input and output prices." };
+  }
+  const rate = num("usdToBdt");
+  if (!(rate >= 50 && rate <= 500)) return { error: "Dollar rate looks wrong (৳ per $1, e.g. 130)." };
+  const wm = Math.round(num("walletMarkupPercent"));
+  if (!(wm >= 0 && wm <= 200)) return { error: "Markup must be 0–200%." };
+  const topups = str(fd, "topupAmounts").split(",").map((x) => parseTaka(x.trim())).filter((x): x is number => x !== null && x >= 1000);
+  if (topups.length === 0) return { error: "Enter at least one top-up amount (৳10 or more)." };
+  const maxT = Math.round(num("maxOutputTokens")), minT = Math.round(num("minOutputTokens"));
+  if (!(maxT >= 256 && maxT <= 64000) || !(minT >= 16 && minT <= maxT)) return { error: "Reply length limits invalid (max 256–64000, min 16–max)." };
+  const effort = str(fd, "effort");
+  if (!["", "low", "medium", "high"].includes(effort)) return { error: "Invalid effort." };
+
+  const data = {
+    modelId,
+    inputUsdPerMTok: new Prisma.Decimal(inPrice),
+    outputUsdPerMTok: new Prisma.Decimal(outPrice),
+    usdToBdt: new Prisma.Decimal(rate),
+    walletMarkupPercent: wm,
+    topupAmounts: [...new Set(topups)].sort((a, b) => a - b),
+    maxOutputTokens: maxT,
+    minOutputTokens: minT,
+    effort,
+  };
+  await prisma.setting.update({ where: { id: 1 }, data });
+  await audit(prisma, admin.id, "settings.update", "Setting", "1", JSON.parse(JSON.stringify(data)));
+  revalidatePath("/", "layout");
+  return { ok: "Saved. New prices apply to every new message from now on." };
+}

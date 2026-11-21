@@ -5,7 +5,10 @@ import { ActionForm } from "@/components/ActionForm";
 import { groupQuote } from "@/lib/pricing";
 import { takaPlain } from "@/lib/money";
 import { currentTime } from "@/lib/clock";
-import { saveSettingsAction, savePaymentMethodAction, setDemoClockAction } from "../actions";
+import { saveSettingsAction, savePaymentMethodAction, setDemoClockAction, saveBusinessSettingsAction } from "../actions";
+import { BusinessSettings } from "./BusinessSettings";
+import { MODEL_PRICES } from "@/lib/models";
+import { GROUPS_ENABLED } from "@/lib/features";
 
 const toTaka = (p: number) => (p / 100).toFixed(2).replace(/\.00$/, "");
 
@@ -26,8 +29,31 @@ export default async function AdminSettings() {
     <div className="space-y-6">
       <h1 className="h1">Settings</h1>
 
+
+
+      <section className="card space-y-3">
+        <div>
+          <h2 className="h2">Pricing & AI</h2>
+          <p className="muted">Everything a customer is charged is calculated from these values.</p>
+        </div>
+        <BusinessSettings
+          action={saveBusinessSettingsAction}
+          models={MODEL_PRICES}
+          initial={{
+            modelId: s.modelId,
+            input: s.rates.inputUsdPerMTok,
+            output: s.rates.outputUsdPerMTok,
+            usdToBdt: s.rates.usdToBdt,
+            markup: s.walletMarkupPercent,
+            topups: s.topupAmounts.map(toTaka).join(", "),
+            maxOutputTokens: s.maxOutputTokens,
+            minOutputTokens: s.minOutputTokens,
+            effort: s.effort,
+          }}
+        />
+      </section>
       <section className="card">
-        <h2 className="h2">Payment receiving methods</h2>
+        <h2 className="h2">bKash / Nagad receiving numbers</h2>
         <p className="muted">Customers only see methods that are enabled and have a receiving number. Use your own real bKash/Nagad number.</p>
         <div className="mt-3 grid gap-4 md:grid-cols-2">
           {["BKASH", "NAGAD"].map((p) => {
@@ -53,8 +79,9 @@ export default async function AdminSettings() {
         </div>
       </section>
 
+      {GROUPS_ENABLED && (
       <section className="card">
-        <h2 className="h2">Plans, pricing & AI</h2>
+        <h2 className="h2">Group Pass pricing</h2>
         <p className="muted">Current quote: 4 people {takaPlain(q4.sharePerMember)} + {takaPlain(q4.feePerMember)} = {takaPlain(q4.pricePerMember)} each · 5 people {takaPlain(q5.sharePerMember)} + {takaPlain(q5.feePerMember)} = {takaPlain(q5.pricePerMember)} each. Changes apply to new groups and renewals only.</p>
         <ActionForm action={saveSettingsAction} submitLabel="Save settings" submitClass="btn-primary" className="mt-3 grid gap-3 md:grid-cols-3">
           {field("poolAmount", "Monthly usage pool (৳)", toTaka(s.poolAmount), "Sample API usage budget split equally per member")}
@@ -83,6 +110,7 @@ export default async function AdminSettings() {
           {field("topupAmounts", "Wallet top-up options (৳, comma separated)", s.topupAmounts.map(toTaka).join(", "))}
         </ActionForm>
       </section>
+      )}
 
       {isDemoMode() && (
         <section className="card bg-amber-50">

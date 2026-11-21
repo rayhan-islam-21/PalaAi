@@ -1,3 +1,4 @@
+import { GROUPS_ENABLED } from "@/lib/features";
 import { prisma } from "@/lib/db";
 import { takaPlain } from "@/lib/money";
 
@@ -22,7 +23,7 @@ export default async function AdminUsers({ searchParams }: { searchParams: Promi
       </form>
       <div className="card mt-3 overflow-x-auto p-0">
         <table className="data-table">
-          <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Wallet</th><th>Reserved</th><th>Groups</th><th>Payments</th><th>Chats</th><th>Joined</th></tr></thead>
+          <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Balance</th><th>In use</th>{GROUPS_ENABLED && <th>Groups</th>}<th>Payments</th><th>Chats</th><th>Joined</th></tr></thead>
           <tbody>
             {users.map((u) => (
               <tr key={u.id}>
@@ -31,7 +32,7 @@ export default async function AdminUsers({ searchParams }: { searchParams: Promi
                 <td>{u.role}</td>
                 <td>{takaPlain(u.wallet?.balance ?? 0)}</td>
                 <td>{takaPlain(u.wallet?.reserved ?? 0)}</td>
-                <td>{u.memberships.map((m) => `${m.group.name} (${m.group.status})`).join(", ") || "-"}</td>
+                {GROUPS_ENABLED && <td>{u.memberships.map((m) => `${m.group.name} (${m.group.status})`).join(", ") || "-"}</td>}
                 <td>{u._count.payments}</td>
                 <td>{u._count.conversations}</td>
                 <td>{u.createdAt.toISOString().slice(0, 10)}</td>

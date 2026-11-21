@@ -11,7 +11,8 @@ export default async function AdminLedger() {
   ]);
   return (
     <div className="space-y-5">
-      <h1 className="h1">Usage & ledger</h1>
+      <h1 className="h1">Usage</h1>
+      <p className="muted">Every AI reply with its real tokens, what the customer paid and what it cost you. Message text is never shown.</p>
       <div className="card overflow-x-auto p-0">
         <table className="data-table">
           <thead><tr><th>Ledger kind</th><th>Entries</th><th>Total</th></tr></thead>

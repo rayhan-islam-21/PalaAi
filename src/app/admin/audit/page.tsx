@@ -6,7 +6,8 @@ export default async function AdminAudit() {
   const actors = await prisma.user.findMany({ where: { id: { in: actorIds } }, select: { id: true, email: true } });
   return (
     <div>
-      <h1 className="h1">Audit log</h1>
+      <h1 className="h1">Activity log</h1>
+      <p className="muted mt-1">Who did what: approvals, rejections, settings changes.</p>
       <div className="card mt-3 overflow-x-auto p-0">
         <table className="data-table">
           <thead><tr><th>Time (UTC)</th><th>Actor</th><th>Action</th><th>Entity</th><th>Data</th></tr></thead>

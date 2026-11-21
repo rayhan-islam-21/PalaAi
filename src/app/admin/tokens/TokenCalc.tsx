@@ -91,7 +91,7 @@ export function TokenCalc() {
             </table>
           </div>
           <p className="text-xs text-mute">
-            Output on Opus 5.5 also includes hidden “thinking” tokens, so real Opus answers cost somewhat more than this. Real per-request tokens and costs are recorded in Usage &amp; ledger.
+            Output on Opus 5.5 also includes hidden “thinking” tokens, so real Opus answers cost somewhat more than this. Real per-request tokens and costs are recorded on the Usage page.
           </p>
         </div>
       )}
