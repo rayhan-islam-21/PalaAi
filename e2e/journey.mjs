@@ -95,14 +95,13 @@ try {
   const u = await newUser("buyer");
   await u.page.goto(BASE);
   await settle(u.page);
-  await u.page.getByRole("link", { name: /ক্রেডিট কিনুন/ }).first().waitFor();
+  await u.page.getByRole("link", { name: /শুরু করুন/ }).first().waitFor();
   const html = await u.page.content();
   assert.ok(!html.includes("গ্রুপ তৈরি করুন"), "no group CTA on home");
-  await u.page.getByTestId("usage-picker").waitFor();
   await u.page.getByTestId("comparison").waitFor();
   await u.page.getByTestId("first-bonus").waitFor();
-  await u.page.getByRole("radio", { name: /সারাদিন/ }).click();
-  await u.page.getByTestId("usage-picker").getByText(/Max/).waitFor();
+  await u.page.getByTestId("pack-1000").click();
+  assert.match(await u.page.getByTestId("buy-pack").textContent(), /১,০০০/);
   await u.page.screenshot({ path: `${SHOTS}/01-home.png`, fullPage: true });
   {
     const desk = await browser.newContext({ viewport: { width: 1280, height: 900 } });
@@ -123,7 +122,9 @@ try {
 
   step("top up ৳100, duplicate TrxID refused");
   await u.page.goto(`${BASE}/wallet`);
-  await u.page.getByTestId("pack-100").getByRole("link").click();
+  await settle(u.page);
+  await u.page.getByTestId("pack-100").click();
+  await u.page.getByTestId("buy-pack").click();
   await u.page.waitForURL(/\/pay\?/);
   assert.match(await u.page.getByTestId("receive").textContent(), /৳১২০/);
   const id = `WAL${run}`.toUpperCase();

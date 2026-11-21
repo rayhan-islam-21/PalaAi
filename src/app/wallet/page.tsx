@@ -4,7 +4,10 @@ import { requireUser } from "@/lib/session";
 import { getSettings } from "@/lib/settings";
 import { AppShell } from "@/components/AppShell";
 import { StatusBadge } from "@/components/Badges";
-import { PackCards } from "@/components/PackCards";
+import { PackPicker } from "@/components/PackPicker";
+import { topupBonus } from "@/lib/packs";
+import { approxMessages } from "@/lib/estimates";
+import { bnNum } from "@/lib/money";
 import { taka, takaPrecise } from "@/lib/money";
 import { formatDhaka } from "@/lib/slots";
 
@@ -31,7 +34,17 @@ export default async function WalletPage() {
       </div>
 
       <h2 className="h2 mt-5 mb-3">টপ-আপ করুন</h2>
-      <PackCards settings={settings} firstTopup={firstTopup} loggedIn />
+      {firstTopup && settings.firstTopupBonusPercent > 0 && (
+        <p className="mb-3 text-[15px] font-semibold text-brand-700">প্রথম টপ-আপে +{bnNum(settings.firstTopupBonusPercent)}% বোনাস (সর্বোচ্চ {taka(settings.firstTopupBonusCap)})</p>
+      )}
+      <PackPicker
+        loggedIn
+        defaultIndex={1}
+        packs={settings.packs.map((p) => {
+          const bonus = topupBonus(p.amount, p, firstTopup, settings).bonus;
+          return { amount: p.amount, name: p.name, bonus, credits: p.amount + bonus, messages: approxMessages(settings, p.amount + bonus) };
+        })}
+      />
 
       {pending.length > 0 && (
         <div className="card mt-4">
