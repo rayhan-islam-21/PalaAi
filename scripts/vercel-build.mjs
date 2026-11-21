@@ -20,6 +20,13 @@ if (process.env.VERCEL) {
   }
   run("npx prisma migrate deploy");
   run("npx tsx prisma/seed.ts");
-  if (env.ADMIN_EMAIL && env.ADMIN_PASSWORD) run("npx tsx scripts/create-admin.ts");
+  if (env.ADMIN_EMAIL && env.ADMIN_PASSWORD) {
+    // A bad admin setting must not take the whole site down: warn and continue.
+    try {
+      run("npx tsx scripts/create-admin.ts");
+    } catch {
+      console.warn("WARNING: admin account was NOT created. Fix ADMIN_EMAIL / ADMIN_PASSWORD (12+ characters) and redeploy.");
+    }
+  }
 }
 run("npx next build");
