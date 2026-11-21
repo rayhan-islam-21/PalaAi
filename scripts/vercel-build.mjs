@@ -25,7 +25,7 @@ if (process.env.VERCEL) {
     try {
       run("npx tsx scripts/create-admin.ts");
     } catch {
-      console.warn("WARNING: admin account was NOT created. Fix ADMIN_EMAIL / ADMIN_PASSWORD (12+ characters) and redeploy.");
+      console.warn("WARNING: admin account was NOT created. Fix ADMIN_EMAIL / ADMIN_PASSWORD (8+ characters) and redeploy.");
     }
   }
 }
