@@ -1,3 +1,4 @@
+import { GROUPS_ENABLED } from "@/lib/features";
 import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/session";
@@ -27,7 +28,7 @@ export default async function Pay({ searchParams }: { searchParams: Promise<{ pu
     }
     title = `ওয়ালেট টপ-আপ ${taka(amount)}`;
     hidden.amount = String(amount);
-  } else if (sp.purpose === "GROUP_SHARE" && sp.shareId) {
+  } else if (sp.purpose === "GROUP_SHARE" && sp.shareId && GROUPS_ENABLED) {
     const share = await prisma.cycleShare.findFirst({ where: { id: sp.shareId, userId: user.id }, include: { cycle: { include: { group: true } }, payments: { where: { status: "PENDING" } } } });
     if (!share) return <AppShell><div className="card">পেমেন্ট খুঁজে পাওয়া যায়নি।</div></AppShell>;
     if (share.status !== "UNPAID" || share.payments.length > 0 || share.cycle.status !== "PENDING") {

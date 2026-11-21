@@ -8,10 +8,14 @@ import { errorMessage } from "@/lib/errors";
 import { createGroup, joinGroup, leaveGroup, cancelGroup, renewGroup, findGroupByCode, normalizeCode } from "@/lib/services/groups";
 import { submitClaim } from "@/lib/services/payments";
 import type { ActionState } from "@/components/ActionForm";
+import { GROUPS_ENABLED } from "@/lib/features";
+
+const GROUPS_OFF: ActionState = { error: "গ্রুপ পাস এখন বন্ধ আছে।" };
 
 const str = (fd: FormData, k: string) => String(fd.get(k) ?? "");
 
 export async function createGroupAction(_: ActionState, fd: FormData): Promise<ActionState> {
+  if (!GROUPS_ENABLED) return GROUPS_OFF;
   const user = await requireUser();
   let id: string;
   try {
@@ -30,6 +34,7 @@ export async function createGroupAction(_: ActionState, fd: FormData): Promise<A
 }
 
 export async function goToCodeAction(_: ActionState, fd: FormData): Promise<ActionState> {
+  if (!GROUPS_ENABLED) return GROUPS_OFF;
   const code = normalizeCode(str(fd, "code"));
   if (code.length < 4) return { error: "সঠিক কোড লিখুন।" };
   const g = await findGroupByCode(prisma, code);
@@ -38,6 +43,7 @@ export async function goToCodeAction(_: ActionState, fd: FormData): Promise<Acti
 }
 
 export async function joinGroupAction(_: ActionState, fd: FormData): Promise<ActionState> {
+  if (!GROUPS_ENABLED) return GROUPS_OFF;
   const code = str(fd, "code");
   const user = await requireUser(`/join/${code}`);
   let groupId: string;
@@ -53,6 +59,7 @@ export async function joinGroupAction(_: ActionState, fd: FormData): Promise<Act
 }
 
 export async function leaveGroupAction(_: ActionState, fd: FormData): Promise<ActionState> {
+  if (!GROUPS_ENABLED) return GROUPS_OFF;
   const user = await requireUser();
   try {
     await leaveGroup(prisma, { userId: user.id, groupId: str(fd, "groupId"), now: await currentTime(prisma) });
@@ -63,6 +70,7 @@ export async function leaveGroupAction(_: ActionState, fd: FormData): Promise<Ac
 }
 
 export async function cancelGroupAction(_: ActionState, fd: FormData): Promise<ActionState> {
+  if (!GROUPS_ENABLED) return GROUPS_OFF;
   const user = await requireUser();
   const groupId = str(fd, "groupId");
   try {
@@ -75,6 +83,7 @@ export async function cancelGroupAction(_: ActionState, fd: FormData): Promise<A
 }
 
 export async function renewGroupAction(_: ActionState, fd: FormData): Promise<ActionState> {
+  if (!GROUPS_ENABLED) return GROUPS_OFF;
   const user = await requireUser();
   const groupId = str(fd, "groupId");
   try {
@@ -90,6 +99,7 @@ export async function submitPaymentAction(_: ActionState, fd: FormData): Promise
   const user = await requireUser();
   try {
     const purpose = str(fd, "purpose") as "WALLET_TOPUP" | "GROUP_SHARE";
+    if (purpose === "GROUP_SHARE" && !GROUPS_ENABLED) return GROUPS_OFF;
     await submitClaim(prisma, {
       userId: user.id,
       purpose,

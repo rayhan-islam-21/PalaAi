@@ -46,7 +46,7 @@ export function ChatApp(props: Props) {
   const [conversations, setConversations] = useState(props.conversations);
   const groupInSlot = props.groups.find((g) => g.inSlot) ?? null;
   // Group allowance is used automatically only inside the member's own slot; the wallet must be chosen explicitly.
-  const [source, setSource] = useState<Source | null>(groupInSlot ? "GROUP" : null);
+  const [source, setSource] = useState<Source | null>(groupInSlot ? "GROUP" : props.groups.length === 0 ? "WALLET" : null);
   const [wallet, setWallet] = useState(props.walletBalance);
   const [groupRemaining, setGroupRemaining] = useState(groupInSlot?.remaining ?? 0);
   const [lastCharge, setLastCharge] = useState<{ charged: number; remaining: number; source: Source } | null>(null);

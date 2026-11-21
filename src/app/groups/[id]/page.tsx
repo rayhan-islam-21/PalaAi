@@ -1,5 +1,6 @@
+import { GROUPS_ENABLED } from "@/lib/features";
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/session";
 import { currentTime } from "@/lib/clock";
@@ -16,6 +17,7 @@ import { cancelGroupAction, leaveGroupAction, renewGroupAction } from "@/app/act
 export const dynamic = "force-dynamic";
 
 export default async function GroupPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ created?: string; joined?: string }> }) {
+  if (!GROUPS_ENABLED) redirect("/dashboard");
   const { id } = await params;
   const sp = await searchParams;
   const user = await requireUser(`/groups/${id}`);

@@ -1,19 +1,18 @@
 import Link from "next/link";
 import { getUser } from "@/lib/session";
 import { SignOutButton } from "./SignOutButton";
-import { IconChat, IconHome, IconUsers, IconWallet, LogoMark } from "./Icons";
+import { IconChart, IconChat, IconHome, IconWallet, LogoMark } from "./Icons";
 
 const NAV = [
   { href: "/dashboard", label: "হোম", Icon: IconHome },
   { href: "/chat", label: "চ্যাট", Icon: IconChat },
   { href: "/wallet", label: "ওয়ালেট", Icon: IconWallet },
-  { href: "/groups", label: "গ্রুপ", Icon: IconUsers },
+  { href: "/payments", label: "পেমেন্ট", Icon: IconChart },
 ];
 
 const PUBLIC_NAV = [
   { href: "/#pricing", label: "দাম" },
   { href: "/#how", label: "কীভাবে কাজ করে" },
-  { href: "/#slots", label: "সময়সূচি" },
   { href: "/#faq", label: "প্রশ্ন" },
 ];
 
@@ -40,7 +39,7 @@ export function SiteFooter() {
         </div>
         <div className="flex gap-5 text-[15px]">
           <Link href="/#faq" className="text-white hover:underline">প্রশ্ন</Link>
-          <Link href="/join" className="text-white hover:underline">গ্রুপে যোগ দিন</Link>
+          <Link href="/#pricing" className="text-white hover:underline">দাম</Link>
           <Link href="/login" className="text-white hover:underline">লগইন</Link>
         </div>
       </div>

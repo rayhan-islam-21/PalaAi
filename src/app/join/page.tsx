@@ -1,8 +1,11 @@
+import { GROUPS_ENABLED } from "@/lib/features";
+import { redirect } from "next/navigation";
 import { AppShell } from "@/components/AppShell";
 import { ActionForm } from "@/components/ActionForm";
 import { goToCodeAction } from "@/app/actions";
 
 export default function JoinByCode() {
+  if (!GROUPS_ENABLED) redirect("/dashboard");
   return (
     <AppShell>
       <h1 className="h1">কোড দিয়ে গ্রুপে যোগ দিন</h1>

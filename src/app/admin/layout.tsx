@@ -1,3 +1,4 @@
+import { GROUPS_ENABLED } from "@/lib/features";
 import Link from "next/link";
 import { requireAdmin } from "@/lib/session";
 import { AppShell } from "@/components/AppShell";
@@ -5,10 +6,10 @@ import { AppShell } from "@/components/AppShell";
 const TABS = [
   ["/admin", "Overview"],
   ["/admin/payments", "Payments"],
-  ["/admin/refunds", "Refunds"],
-  ["/admin/groups", "Groups"],
+  ...(GROUPS_ENABLED ? [["/admin/refunds", "Refunds"], ["/admin/groups", "Groups"]] : []),
   ["/admin/users", "Customers"],
   ["/admin/ledger", "Usage & ledger"],
+  ["/admin/tokens", "Token calculator"],
   ["/admin/settings", "Settings"],
   ["/admin/audit", "Audit log"],
 ];

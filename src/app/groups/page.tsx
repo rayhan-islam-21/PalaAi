@@ -1,3 +1,5 @@
+import { GROUPS_ENABLED } from "@/lib/features";
+import { redirect } from "next/navigation";
 import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/session";
@@ -8,6 +10,7 @@ import { bnNum } from "@/lib/money";
 export const dynamic = "force-dynamic";
 
 export default async function Groups({ searchParams }: { searchParams: Promise<{ left?: string }> }) {
+  if (!GROUPS_ENABLED) redirect("/dashboard");
   const user = await requireUser("/groups");
   const sp = await searchParams;
   const ms = await prisma.membership.findMany({

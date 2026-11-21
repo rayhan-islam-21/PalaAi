@@ -5,6 +5,7 @@ import { currentTime } from "@/lib/clock";
 import { AppError } from "@/lib/errors";
 import { getProvider } from "@/lib/ai/provider";
 import { prepareChat, runChat, type StreamEvent } from "@/lib/services/chat";
+import { GROUPS_ENABLED } from "@/lib/features";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -27,6 +28,8 @@ export async function POST(req: Request) {
   } catch {
     return json({ error: "Invalid request", code: "BAD_JSON" }, 400);
   }
+
+  if (body.source === "GROUP" && !GROUPS_ENABLED) return json({ error: "গ্রুপ পাস এখন বন্ধ আছে।", code: "GROUPS_DISABLED" }, 403);
 
   let prepared;
   try {

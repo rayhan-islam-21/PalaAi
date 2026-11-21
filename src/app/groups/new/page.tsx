@@ -1,3 +1,5 @@
+import { GROUPS_ENABLED } from "@/lib/features";
+import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/session";
 import { getSettings } from "@/lib/settings";
@@ -8,6 +10,7 @@ import { createGroupAction } from "@/app/actions";
 export const dynamic = "force-dynamic";
 
 export default async function NewGroup() {
+  if (!GROUPS_ENABLED) redirect("/dashboard");
   await requireUser("/groups/new");
   const s = await getSettings(prisma);
   return (

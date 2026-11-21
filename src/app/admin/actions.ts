@@ -10,7 +10,10 @@ import { audit } from "@/lib/audit";
 import { approveClaim, rejectClaim, completeRefund, normalizeMsisdn, PROVIDERS } from "@/lib/services/payments";
 import { cancelGroup } from "@/lib/services/groups";
 import { releaseStale } from "@/lib/services/chat";
-import { FEE_MAX, FEE_MIN } from "@/lib/settings";
+import { FEE_MAX, FEE_MIN, getSettings } from "@/lib/settings";
+import { MODEL_PRICES } from "@/lib/models";
+import { countForModel } from "@/lib/token-count";
+import { customerCharge, providerCostPoisha } from "@/lib/pricing";
 import { parseTaka } from "@/lib/money";
 import { validateSchedule, type Slot } from "@/lib/slots";
 import type { ActionState } from "@/components/ActionForm";
@@ -156,4 +159,70 @@ export async function releaseStaleAction(_: ActionState): Promise<ActionState> {
   await requireAdmin();
   const n = await releaseStale(prisma, await currentTime(prisma));
   return { ok: `Released ${n} stale reservation(s).` };
+}
+
+export type TokenCalcState = {
+  error?: string;
+  question?: string;
+  answer?: string;
+  exact?: boolean;
+  usdToBdt?: number;
+  markup?: number;
+  words?: { question: number; answer: number };
+  chars?: { question: number; answer: number };
+  history?: number;
+  rows?: {
+    label: string;
+    input: number;
+    output: number;
+    question: number;
+    answer: number;
+    system: number;
+    costPoisha: number;
+    cachedCostPoisha: number;
+    chargePoisha: number;
+    cachedChargePoisha: number;
+  }[];
+} | null;
+
+export async function tokenCalcAction(_: TokenCalcState, fd: FormData): Promise<TokenCalcState> {
+  await requireAdmin();
+  const question = String(fd.get("question") ?? "").slice(0, 50000);
+  const answer = String(fd.get("answer") ?? "").slice(0, 50000);
+  const history = Math.max(0, Math.min(200000, Math.round(Number(fd.get("history") ?? 0) || 0)));
+  if (!question.trim() && !answer.trim()) return { error: "Type a customer message and/or a sample AI answer." };
+  const keep = { question, answer, history };
+  const s = await getSettings(prisma);
+  const words = (t: string) => (t.trim() ? t.trim().split(/\s+/).length : 0);
+  try {
+    const rows = await Promise.all(
+      MODEL_PRICES.map(async (m) => {
+        const c = await countForModel(m.id, question, answer);
+        const input = c.system + history + c.question;
+        const rates = { inputUsdPerMTok: m.input, outputUsdPerMTok: m.output, usdToBdt: s.rates.usdToBdt };
+        const cost = providerCostPoisha(rates, input, c.answer);
+        const charge = customerCharge(rates, s.walletMarkupPercent, input, c.answer);
+        // With prompt caching, the earlier chat (history) is billed at the cache-read price.
+        const microUsdCached = (c.system + c.question) * m.input + history * m.cacheRead + c.answer * m.output;
+        const cachedCost = Math.ceil((microUsdCached * s.rates.usdToBdt) / 10000);
+        const cachedCharge = Math.ceil((cachedCost * (100 + s.walletMarkupPercent)) / 100);
+        return {
+          label: m.label, input, output: c.answer, question: c.question, answer: c.answer, system: c.system,
+          costPoisha: cost, cachedCostPoisha: cachedCost, chargePoisha: charge, cachedChargePoisha: cachedCharge, exact: c.exact,
+        };
+      }),
+    );
+    return {
+      ...keep,
+      exact: rows.every((r) => r.exact),
+      usdToBdt: s.rates.usdToBdt,
+      markup: s.walletMarkupPercent,
+      words: { question: words(question), answer: words(answer) },
+      chars: { question: [...question].length, answer: [...answer].length },
+      history,
+      rows,
+    };
+  } catch (e) {
+    return { ...keep, error: `Token counting failed: ${e instanceof Error ? e.message : String(e)}` };
+  }
 }

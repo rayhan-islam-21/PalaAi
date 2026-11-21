@@ -1,3 +1,5 @@
+import { GROUPS_ENABLED } from "@/lib/features";
+import { redirect } from "next/navigation";
 import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { getUser } from "@/lib/session";
@@ -11,6 +13,7 @@ import { formatSlot, type Slot } from "@/lib/slots";
 export const dynamic = "force-dynamic";
 
 export default async function JoinPage({ params }: { params: Promise<{ code: string }> }) {
+  if (!GROUPS_ENABLED) redirect("/dashboard");
   const { code } = await params;
   const user = await getUser();
   const group = await findGroupByCode(prisma, code);
