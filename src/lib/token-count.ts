@@ -1,5 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
-import { hasAnthropicKey } from "./env";
+import { anthropicApiKey, hasAnthropicKey } from "./env";
 import { SYSTEM_PROMPT } from "./ai/provider";
 
 export type Counted = { model: string; question: number; answer: number; system: number; exact: boolean };
@@ -23,7 +23,7 @@ export async function countForModel(model: string, question: string, answer: str
   if (!hasAnthropicKey()) {
     return { model, question: roughTokens(question), answer: roughTokens(answer), system: roughTokens(SYSTEM_PROMPT), exact: false };
   }
-  const client = new Anthropic({ maxRetries: 2 });
+  const client = new Anthropic({ apiKey: anthropicApiKey(), maxRetries: 2 });
   const count = (text: string, system?: string) =>
     client.messages.countTokens({ model, ...(system ? { system } : {}), messages: [{ role: "user", content: text || "." }] }).then((r) => r.input_tokens);
   const [base, q, a, withSystem] = await Promise.all([count("."), count(question), count(answer), count(".", SYSTEM_PROMPT)]);

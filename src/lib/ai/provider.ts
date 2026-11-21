@@ -1,5 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
-import { hasAnthropicKey, isDemoMode } from "../env";
+import { anthropicApiKey, hasAnthropicKey, isDemoMode } from "../env";
 
 export type ChatTurn = { role: "user" | "assistant"; content: string };
 
@@ -52,7 +52,7 @@ export class AnthropicProvider implements AIProvider {
 
   constructor(apiKey?: string) {
     // SDK retries only the initial request on 429/5xx/connection errors, before any tokens stream.
-    this.client = new Anthropic({ apiKey: apiKey ?? process.env.ANTHROPIC_API_KEY, maxRetries: 2, timeout: 5 * 60 * 1000 });
+    this.client = new Anthropic({ apiKey: apiKey ?? anthropicApiKey(), maxRetries: 2, timeout: 5 * 60 * 1000 });
   }
 
   async countTokens(req: Omit<GenerateRequest, "maxTokens" | "effort">): Promise<number> {

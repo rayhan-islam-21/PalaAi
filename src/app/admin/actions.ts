@@ -223,7 +223,11 @@ export async function tokenCalcAction(_: TokenCalcState, fd: FormData): Promise<
       rows,
     };
   } catch (e) {
-    return { ...keep, error: `Token counting failed: ${e instanceof Error ? e.message : String(e)}` };
+    const msg = e instanceof Error ? e.message : String(e);
+    if (/401|authentication_error|invalid.*(key|token)/i.test(msg)) {
+      return { ...keep, error: "Anthropic rejected the API key (401). In Vercel → Settings → Environment Variables, replace ANTHROPIC_API_KEY with a valid key from console.anthropic.com → API Keys (starts with sk-ant-api…), then Redeploy. Live chat fails with the same error until this is fixed." };
+    }
+    return { ...keep, error: `Token counting failed: ${msg}` };
   }
 }
 

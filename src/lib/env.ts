@@ -7,8 +7,16 @@ export function isDemoMode(): boolean {
   return true;
 }
 
+/** The Anthropic API key with surrounding whitespace or quotes (common copy-paste mistakes) removed. */
+export function anthropicApiKey(): string | undefined {
+  const raw = process.env.ANTHROPIC_API_KEY;
+  if (!raw) return undefined;
+  const key = raw.trim().replace(/^["']+|["']+$/g, "").trim();
+  return key || undefined;
+}
+
 export function hasAnthropicKey(): boolean {
-  return !!process.env.ANTHROPIC_API_KEY && process.env.ANTHROPIC_API_KEY.trim().length > 0;
+  return !!anthropicApiKey();
 }
 
 /** Public base URL. Falls back to Vercel's production domain when not set explicitly. */
